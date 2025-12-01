@@ -3,6 +3,7 @@ import { BGMInfo } from "./bgm-info";
 import { PlayerControls } from "./player-controls";
 import { LocationSettings } from "./location-settings";
 import { BGMHistory } from "./bgm-history";
+import { PlaylistManager } from "./playlist-manager";
 import { ThemeToggle } from "./theme-toggle";
 import { GenreSelector } from "./genre-selector";
 import type { WeatherData, TimeOfDay, BGM, MusicGenre } from "@shared/schema";
@@ -35,6 +36,7 @@ interface PlayerCardProps {
   onSelectBgm: (bgm: BGM) => void;
   onClearHistory: () => void;
   onDeleteBgm?: (id: number) => void;
+  onToggleFavorite?: (id: number) => void;
   preferredGenre: MusicGenre;
   onGenreChange: (genre: MusicGenre) => void;
 }
@@ -67,6 +69,7 @@ export function PlayerCard({
   onSelectBgm,
   onClearHistory,
   onDeleteBgm,
+  onToggleFavorite,
   preferredGenre,
   onGenreChange,
 }: PlayerCardProps) {
@@ -95,6 +98,10 @@ export function PlayerCard({
               onClearHistory={onClearHistory}
               onDeleteBgm={onDeleteBgm}
             />
+            <PlaylistManager
+              currentBgmId={currentBgm?.id ?? null}
+              onSelectBgm={onSelectBgm}
+            />
             <ThemeToggle />
           </div>
         </div>
@@ -115,7 +122,7 @@ export function PlayerCard({
           </div>
 
           <div className="py-4">
-            <BGMInfo bgm={currentBgm} isGenerating={isGenerating} />
+            <BGMInfo bgm={currentBgm} isGenerating={isGenerating} onToggleFavorite={onToggleFavorite} />
           </div>
 
           <PlayerControls

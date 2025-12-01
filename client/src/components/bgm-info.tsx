@@ -1,13 +1,15 @@
-import { Music, Clock } from "lucide-react";
+import { Music, Clock, Heart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type { BGM } from "@shared/schema";
 
 interface BGMInfoProps {
   bgm: BGM | null;
   isGenerating: boolean;
+  onToggleFavorite?: (id: number) => void;
 }
 
-export function BGMInfo({ bgm, isGenerating }: BGMInfoProps) {
+export function BGMInfo({ bgm, isGenerating, onToggleFavorite }: BGMInfoProps) {
   if (isGenerating) {
     return (
       <div className="text-center space-y-4">
@@ -56,10 +58,25 @@ export function BGMInfo({ bgm, isGenerating }: BGMInfoProps) {
 
   return (
     <div className="text-center space-y-4">
-      <div className="flex justify-center">
+      <div className="flex justify-center items-center gap-3">
         <div className="w-12 h-12 rounded-full glass-strong flex items-center justify-center">
           <Music className="w-6 h-6 text-white" />
         </div>
+        {onToggleFavorite && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`h-10 w-10 rounded-full glass ${
+              bgm.isFavorite 
+                ? "text-red-400 hover:text-red-300" 
+                : "text-white/60 hover:text-white"
+            }`}
+            onClick={() => onToggleFavorite(bgm.id)}
+            data-testid="button-toggle-favorite"
+          >
+            <Heart className={`w-5 h-5 ${bgm.isFavorite ? "fill-current" : ""}`} />
+          </Button>
+        )}
       </div>
       
       <div className="space-y-2">
@@ -81,6 +98,12 @@ export function BGMInfo({ bgm, isGenerating }: BGMInfoProps) {
         <Badge variant="secondary" className="glass text-white/80 border-white/20" data-testid="badge-bgm-tempo">
           {bgm.tempo}
         </Badge>
+        {bgm.isFavorite && (
+          <Badge variant="secondary" className="glass text-red-400/80 border-red-400/20" data-testid="badge-bgm-favorite">
+            <Heart className="w-3 h-3 mr-1 fill-current" />
+            Favorite
+          </Badge>
+        )}
       </div>
     </div>
   );

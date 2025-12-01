@@ -150,6 +150,38 @@ export default function Home() {
     },
   });
 
+  const toggleFavoriteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiRequest("POST", `/api/bgm/${id}/favorite`);
+      return response as BGM;
+    },
+    onMutate: async (bgmId) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/bgm"] });
+      const previous = queryClient.getQueryData<{ success: boolean; data: BGM[] }>(["/api/bgm"]);
+      queryClient.setQueryData<{ success: boolean; data: BGM[] }>(["/api/bgm"], (old) => ({
+        success: true,
+        data: old?.data?.map(b => 
+          b.id === bgmId ? { ...b, isFavorite: !b.isFavorite } : b
+        ) ?? [],
+      }));
+      return { previous };
+    },
+    onError: (_err, _bgmId, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["/api/bgm"], context.previous);
+      }
+    },
+    onSuccess: (updatedBgm) => {
+      if (currentBgm?.id === updatedBgm.id) {
+        setCurrentBgm(updatedBgm);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bgm"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/favorites"] });
+    },
+  });
+
   const handlePlayPause = useCallback(() => {
     if (!currentBgm && !generateBgmMutation.isPending) {
       generateBgmMutation.mutate();
@@ -203,6 +235,10 @@ export default function Home() {
       description: "The track has been removed from history.",
     });
   }, [deleteBgmMutation, toast]);
+
+  const handleToggleFavorite = useCallback((id: number) => {
+    toggleFavoriteMutation.mutate(id);
+  }, [toggleFavoriteMutation]);
 
   const handleClearHistory = useCallback(async () => {
     for (const bgm of bgmHistory) {
@@ -258,6 +294,7 @@ export default function Home() {
           onSelectBgm={handleSelectBgm}
           onClearHistory={handleClearHistory}
           onDeleteBgm={handleDeleteBgm}
+          onToggleFavorite={handleToggleFavorite}
           preferredGenre={preferredGenre}
           onGenreChange={setPreferredGenre}
         />

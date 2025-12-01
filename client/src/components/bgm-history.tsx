@@ -1,4 +1,4 @@
-import { History, Play, Clock, Trash2 } from "lucide-react";
+import { History, Play, Clock, Trash2, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -91,6 +91,11 @@ export function BGMHistory({
                           <Badge variant="secondary" className="glass text-white/70 text-xs">
                             {bgm.genre}
                           </Badge>
+                          {bgm.isFavorite && (
+                            <Badge variant="secondary" className="glass text-red-400/70 text-xs">
+                              <Heart className="w-2 h-2 mr-1 fill-current" />
+                            </Badge>
+                          )}
                           <span className="text-white/40 text-xs flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             {formatDistanceToNow(new Date(bgm.createdAt), {
