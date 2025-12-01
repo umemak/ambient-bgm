@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { getWeatherByCoordinates, getWeatherByCity } from "./weather";
 import { generateBGMDescription } from "./openai";
-import { generateBgmRequestSchema } from "@shared/schema";
+import { generateBgmRequestSchema, insertPlaylistSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(
@@ -97,7 +97,15 @@ export async function registerRoutes(
   // Get single BGM
   app.get("/api/bgm/:id", async (req, res) => {
     try {
-      const bgm = await storage.getBgm(req.params.id);
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid BGM ID",
+        });
+      }
+      
+      const bgm = await storage.getBgm(id);
       
       if (!bgm) {
         return res.status(404).json({
@@ -119,7 +127,15 @@ export async function registerRoutes(
   // Delete BGM
   app.delete("/api/bgm/:id", async (req, res) => {
     try {
-      const deleted = await storage.deleteBgm(req.params.id);
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid BGM ID",
+        });
+      }
+      
+      const deleted = await storage.deleteBgm(id);
       
       if (!deleted) {
         return res.status(404).json({
@@ -148,6 +164,220 @@ export async function registerRoutes(
       return res.status(500).json({
         success: false,
         error: "Failed to clear BGMs",
+      });
+    }
+  });
+
+  // Toggle favorite status
+  app.post("/api/bgm/:id/favorite", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid BGM ID",
+        });
+      }
+      
+      const bgm = await storage.toggleFavorite(id);
+      
+      if (!bgm) {
+        return res.status(404).json({
+          success: false,
+          error: "BGM not found",
+        });
+      }
+      
+      return res.json({ success: true, data: bgm });
+    } catch (error) {
+      console.error("Error toggling favorite:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to toggle favorite",
+      });
+    }
+  });
+
+  // Get all favorites
+  app.get("/api/favorites", async (req, res) => {
+    try {
+      const favorites = await storage.getFavorites();
+      return res.json({ success: true, data: favorites });
+    } catch (error) {
+      console.error("Error fetching favorites:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to fetch favorites",
+      });
+    }
+  });
+
+  // Playlist routes
+  app.get("/api/playlists", async (req, res) => {
+    try {
+      const playlists = await storage.getAllPlaylists();
+      return res.json({ success: true, data: playlists });
+    } catch (error) {
+      console.error("Error fetching playlists:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to fetch playlists",
+      });
+    }
+  });
+
+  app.post("/api/playlists", async (req, res) => {
+    try {
+      const validatedData = insertPlaylistSchema.parse(req.body);
+      const playlist = await storage.createPlaylist(validatedData);
+      return res.json({ success: true, data: playlist });
+    } catch (error) {
+      console.error("Error creating playlist:", error);
+      
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid playlist data",
+          details: error.errors,
+        });
+      }
+      
+      return res.status(500).json({
+        success: false,
+        error: "Failed to create playlist",
+      });
+    }
+  });
+
+  app.get("/api/playlists/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid playlist ID",
+        });
+      }
+      
+      const playlist = await storage.getPlaylist(id);
+      
+      if (!playlist) {
+        return res.status(404).json({
+          success: false,
+          error: "Playlist not found",
+        });
+      }
+      
+      return res.json({ success: true, data: playlist });
+    } catch (error) {
+      console.error("Error fetching playlist:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to fetch playlist",
+      });
+    }
+  });
+
+  app.delete("/api/playlists/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid playlist ID",
+        });
+      }
+      
+      const deleted = await storage.deletePlaylist(id);
+      
+      if (!deleted) {
+        return res.status(404).json({
+          success: false,
+          error: "Playlist not found",
+        });
+      }
+      
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting playlist:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to delete playlist",
+      });
+    }
+  });
+
+  app.get("/api/playlists/:id/items", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid playlist ID",
+        });
+      }
+      
+      const items = await storage.getPlaylistItems(id);
+      return res.json({ success: true, data: items });
+    } catch (error) {
+      console.error("Error fetching playlist items:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to fetch playlist items",
+      });
+    }
+  });
+
+  app.post("/api/playlists/:playlistId/items/:bgmId", async (req, res) => {
+    try {
+      const playlistId = parseInt(req.params.playlistId, 10);
+      const bgmId = parseInt(req.params.bgmId, 10);
+      
+      if (isNaN(playlistId) || isNaN(bgmId)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid ID",
+        });
+      }
+      
+      const item = await storage.addToPlaylist(playlistId, bgmId);
+      return res.json({ success: true, data: item });
+    } catch (error) {
+      console.error("Error adding to playlist:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to add to playlist",
+      });
+    }
+  });
+
+  app.delete("/api/playlists/:playlistId/items/:bgmId", async (req, res) => {
+    try {
+      const playlistId = parseInt(req.params.playlistId, 10);
+      const bgmId = parseInt(req.params.bgmId, 10);
+      
+      if (isNaN(playlistId) || isNaN(bgmId)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid ID",
+        });
+      }
+      
+      const removed = await storage.removeFromPlaylist(playlistId, bgmId);
+      
+      if (!removed) {
+        return res.status(404).json({
+          success: false,
+          error: "Item not found in playlist",
+        });
+      }
+      
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error removing from playlist:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to remove from playlist",
       });
     }
   });

@@ -15,7 +15,7 @@ import { formatDistanceToNow } from "date-fns";
 
 interface BGMHistoryProps {
   history: BGM[];
-  currentBgmId: string | null;
+  currentBgmId: number | null;
   onSelectBgm: (bgm: BGM) => void;
   onClearHistory: () => void;
 }

@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { pgTable, text, timestamp, serial, boolean, integer } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { relations } from "drizzle-orm";
 
 // Weather condition types
 export const weatherConditions = [
@@ -55,17 +58,19 @@ export const weatherDataSchema = z.object({
 
 export type WeatherData = z.infer<typeof weatherDataSchema>;
 
-// BGM schema
+// BGM schema (frontend-compatible)
 export const bgmSchema = z.object({
-  id: z.string(),
+  id: z.number(),
   title: z.string(),
   description: z.string(),
   mood: z.string(),
   genre: z.string(),
-  tempo: z.enum(["slow", "moderate", "upbeat"]),
-  weatherCondition: z.enum(weatherConditions),
-  timeOfDay: z.enum(timeOfDayTypes),
-  createdAt: z.string(),
+  tempo: z.string(),
+  weatherCondition: z.string(),
+  timeOfDay: z.string(),
+  isFavorite: z.boolean().optional(),
+  audioUrl: z.string().nullable().optional(),
+  createdAt: z.union([z.string(), z.date()]),
 });
 
 export type BGM = z.infer<typeof bgmSchema>;
@@ -120,3 +125,68 @@ export const bgmListResponseSchema = z.object({
   data: z.array(bgmSchema).optional(),
   error: z.string().optional(),
 });
+
+// Drizzle Tables for PostgreSQL persistence
+
+// BGM table for storing generated BGMs
+export const bgms = pgTable("bgms", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  mood: text("mood").notNull(),
+  genre: text("genre").notNull(),
+  tempo: text("tempo").notNull(),
+  weatherCondition: text("weather_condition").notNull(),
+  timeOfDay: text("time_of_day").notNull(),
+  isFavorite: boolean("is_favorite").default(false),
+  audioUrl: text("audio_url"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertBgmDbSchema = createInsertSchema(bgms).omit({ id: true, createdAt: true });
+export type InsertBGMDb = z.infer<typeof insertBgmDbSchema>;
+export type BGMDb = typeof bgms.$inferSelect;
+
+// Playlists table for organizing BGMs
+export const playlists = pgTable("playlists", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertPlaylistSchema = createInsertSchema(playlists).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertPlaylist = z.infer<typeof insertPlaylistSchema>;
+export type Playlist = typeof playlists.$inferSelect;
+
+// Playlist items table for many-to-many relationship
+export const playlistItems = pgTable("playlist_items", {
+  id: serial("id").primaryKey(),
+  playlistId: integer("playlist_id").notNull(),
+  bgmId: integer("bgm_id").notNull(),
+  position: integer("position").notNull().default(0),
+  addedAt: timestamp("added_at").defaultNow().notNull(),
+});
+
+export type PlaylistItem = typeof playlistItems.$inferSelect;
+
+// Relations
+export const bgmsRelations = relations(bgms, ({ many }) => ({
+  playlistItems: many(playlistItems),
+}));
+
+export const playlistsRelations = relations(playlists, ({ many }) => ({
+  items: many(playlistItems),
+}));
+
+export const playlistItemsRelations = relations(playlistItems, ({ one }) => ({
+  playlist: one(playlists, {
+    fields: [playlistItems.playlistId],
+    references: [playlists.id],
+  }),
+  bgm: one(bgms, {
+    fields: [playlistItems.bgmId],
+    references: [bgms.id],
+  }),
+}));
