@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { WeatherBackground } from "@/components/weather-background";
@@ -25,10 +25,29 @@ export default function Home() {
   const [isMuted, setIsMuted] = useState(false);
   const [manualLocation, setManualLocation] = useLocalStorage("ambient-bgm-manual-location", "");
   const [useAutoLocation, setUseAutoLocation] = useLocalStorage("ambient-bgm-auto-location", true);
-  const [bgmHistory, setBgmHistory] = useLocalStorage<BGM[]>("ambient-bgm-history", []);
   const [currentBgm, setCurrentBgm] = useState<BGM | null>(null);
   const [currentHistoryIndex, setCurrentHistoryIndex] = useState(-1);
   const [preferredGenre, setPreferredGenre] = useLocalStorage<MusicGenre>("ambient-bgm-preferred-genre", "auto");
+
+  const bgmHistoryQuery = useQuery<{ success: boolean; data: BGM[] }>({
+    queryKey: ["/api/bgm"],
+    staleTime: 30000,
+  });
+  
+  const bgmHistory = useMemo(() => bgmHistoryQuery.data?.data ?? [], [bgmHistoryQuery.data]);
+
+  useEffect(() => {
+    if (currentBgm && bgmHistory.length > 0) {
+      const newIndex = bgmHistory.findIndex(b => b.id === currentBgm.id);
+      if (newIndex !== -1 && newIndex !== currentHistoryIndex) {
+        setCurrentHistoryIndex(newIndex);
+      } else if (newIndex === -1) {
+        setCurrentBgm(null);
+        setCurrentHistoryIndex(-1);
+        setIsPlaying(false);
+      }
+    }
+  }, [bgmHistory, currentBgm, currentHistoryIndex]);
 
   const {
     location,
@@ -77,12 +96,14 @@ export default function Home() {
     },
     onSuccess: (newBgm) => {
       setCurrentBgm(newBgm);
-      setBgmHistory((prev) => {
-        const filtered = prev.filter((b) => b.id !== newBgm.id);
-        return [newBgm, ...filtered].slice(0, 10);
-      });
       setCurrentHistoryIndex(0);
       setIsPlaying(true);
+      const previousData = queryClient.getQueryData<{ success: boolean; data: BGM[] }>(["/api/bgm"]);
+      const existingBgms = previousData?.data ?? [];
+      queryClient.setQueryData<{ success: boolean; data: BGM[] }>(["/api/bgm"], {
+        success: true,
+        data: [newBgm, ...existingBgms.filter(b => b.id !== newBgm.id)],
+      });
       toast({
         title: "New BGM Generated",
         description: newBgm.title,
@@ -95,6 +116,37 @@ export default function Home() {
         description: "Could not generate BGM. Please try again.",
         variant: "destructive",
       });
+    },
+  });
+  
+  const deleteBgmMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/bgm/${id}`);
+      return id;
+    },
+    onMutate: async (deletedId) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/bgm"] });
+      const previous = queryClient.getQueryData<{ success: boolean; data: BGM[] }>(["/api/bgm"]);
+      queryClient.setQueryData<{ success: boolean; data: BGM[] }>(["/api/bgm"], (old) => ({
+        success: true,
+        data: old?.data?.filter(b => b.id !== deletedId) ?? [],
+      }));
+      return { previous };
+    },
+    onError: (_err, _deletedId, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["/api/bgm"], context.previous);
+      }
+    },
+    onSuccess: (deletedId) => {
+      if (currentBgm?.id === deletedId) {
+        setCurrentBgm(null);
+        setCurrentHistoryIndex(-1);
+        setIsPlaying(false);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bgm"] });
     },
   });
 
@@ -144,8 +196,19 @@ export default function Home() {
     setIsPlaying(true);
   }, [bgmHistory]);
 
-  const handleClearHistory = useCallback(() => {
-    setBgmHistory([]);
+  const handleDeleteBgm = useCallback((id: number) => {
+    deleteBgmMutation.mutate(id);
+    toast({
+      title: "BGM Deleted",
+      description: "The track has been removed from history.",
+    });
+  }, [deleteBgmMutation, toast]);
+
+  const handleClearHistory = useCallback(async () => {
+    for (const bgm of bgmHistory) {
+      await apiRequest("DELETE", `/api/bgm/${bgm.id}`);
+    }
+    queryClient.invalidateQueries({ queryKey: ["/api/bgm"] });
     setCurrentBgm(null);
     setCurrentHistoryIndex(-1);
     setIsPlaying(false);
@@ -153,7 +216,7 @@ export default function Home() {
       title: "History Cleared",
       description: "All BGM history has been removed.",
     });
-  }, [setBgmHistory, toast]);
+  }, [bgmHistory, toast]);
 
   const handleApplyLocation = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["/api/weather"] });
@@ -194,6 +257,7 @@ export default function Home() {
           onApplyLocation={handleApplyLocation}
           onSelectBgm={handleSelectBgm}
           onClearHistory={handleClearHistory}
+          onDeleteBgm={handleDeleteBgm}
           preferredGenre={preferredGenre}
           onGenreChange={setPreferredGenre}
         />

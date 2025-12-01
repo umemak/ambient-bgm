@@ -18,6 +18,7 @@ interface BGMHistoryProps {
   currentBgmId: number | null;
   onSelectBgm: (bgm: BGM) => void;
   onClearHistory: () => void;
+  onDeleteBgm?: (id: number) => void;
 }
 
 export function BGMHistory({
@@ -25,6 +26,7 @@ export function BGMHistory({
   currentBgmId,
   onSelectBgm,
   onClearHistory,
+  onDeleteBgm,
 }: BGMHistoryProps) {
   return (
     <Sheet>
@@ -58,42 +60,60 @@ export function BGMHistory({
               <ScrollArea className="h-[calc(100vh-200px)]">
                 <div className="space-y-3 pr-4">
                   {history.map((bgm) => (
-                    <button
+                    <div
                       key={bgm.id}
-                      onClick={() => onSelectBgm(bgm)}
-                      className={`w-full text-left p-4 rounded-xl glass transition-all duration-200 hover:bg-white/10 ${
+                      className={`relative p-4 rounded-xl glass transition-all duration-200 hover:bg-white/10 ${
                         currentBgmId === bgm.id
                           ? "ring-2 ring-white/30 bg-white/10"
                           : ""
                       }`}
-                      data-testid={`button-history-item-${bgm.id}`}
                     >
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <h3 className="font-medium text-white text-sm leading-tight">
-                          {bgm.title}
-                        </h3>
-                        {currentBgmId === bgm.id && (
-                          <Badge className="glass text-white/80 text-xs shrink-0">
-                            <Play className="w-2 h-2 mr-1" />
-                            Now
+                      <button
+                        onClick={() => onSelectBgm(bgm)}
+                        className="w-full text-left"
+                        data-testid={`button-history-item-${bgm.id}`}
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h3 className="font-medium text-white text-sm leading-tight pr-6">
+                            {bgm.title}
+                          </h3>
+                          {currentBgmId === bgm.id && (
+                            <Badge className="glass text-white/80 text-xs shrink-0">
+                              <Play className="w-2 h-2 mr-1" />
+                              Now
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-white/60 text-xs mb-2 line-clamp-2">
+                          {bgm.mood}
+                        </p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="secondary" className="glass text-white/70 text-xs">
+                            {bgm.genre}
                           </Badge>
-                        )}
-                      </div>
-                      <p className="text-white/60 text-xs mb-2 line-clamp-2">
-                        {bgm.mood}
-                      </p>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge variant="secondary" className="glass text-white/70 text-xs">
-                          {bgm.genre}
-                        </Badge>
-                        <span className="text-white/40 text-xs flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {formatDistanceToNow(new Date(bgm.createdAt), {
-                            addSuffix: true,
-                          })}
-                        </span>
-                      </div>
-                    </button>
+                          <span className="text-white/40 text-xs flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {formatDistanceToNow(new Date(bgm.createdAt), {
+                              addSuffix: true,
+                            })}
+                          </span>
+                        </div>
+                      </button>
+                      {onDeleteBgm && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute top-2 right-2 h-6 w-6 text-white/40 hover:text-white hover:bg-white/20"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteBgm(bgm.id);
+                          }}
+                          data-testid={`button-delete-bgm-${bgm.id}`}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </div>
                   ))}
                 </div>
               </ScrollArea>

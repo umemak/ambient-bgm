@@ -34,6 +34,7 @@ interface PlayerCardProps {
   onApplyLocation: () => void;
   onSelectBgm: (bgm: BGM) => void;
   onClearHistory: () => void;
+  onDeleteBgm?: (id: number) => void;
   preferredGenre: MusicGenre;
   onGenreChange: (genre: MusicGenre) => void;
 }
@@ -65,6 +66,7 @@ export function PlayerCard({
   onApplyLocation,
   onSelectBgm,
   onClearHistory,
+  onDeleteBgm,
   preferredGenre,
   onGenreChange,
 }: PlayerCardProps) {
@@ -91,6 +93,7 @@ export function PlayerCard({
               currentBgmId={currentBgm?.id ?? null}
               onSelectBgm={onSelectBgm}
               onClearHistory={onClearHistory}
+              onDeleteBgm={onDeleteBgm}
             />
             <ThemeToggle />
           </div>
