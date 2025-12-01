@@ -6,7 +6,7 @@ import { PlayerCard } from "@/components/player-card";
 import { useGeolocation } from "@/hooks/use-geolocation";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { getTimeOfDay } from "@/lib/weather-utils";
-import type { WeatherData, BGM, TimeOfDay, WeatherCondition } from "@shared/schema";
+import type { WeatherData, BGM, TimeOfDay, WeatherCondition, MusicGenre } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
 const DEFAULT_WEATHER: WeatherData = {
@@ -28,6 +28,7 @@ export default function Home() {
   const [bgmHistory, setBgmHistory] = useLocalStorage<BGM[]>("ambient-bgm-history", []);
   const [currentBgm, setCurrentBgm] = useState<BGM | null>(null);
   const [currentHistoryIndex, setCurrentHistoryIndex] = useState(-1);
+  const [preferredGenre, setPreferredGenre] = useLocalStorage<MusicGenre>("ambient-bgm-preferred-genre", "auto");
 
   const {
     location,
@@ -70,6 +71,7 @@ export default function Home() {
       const response = await apiRequest("POST", "/api/bgm/generate", {
         weather,
         timeOfDay,
+        preferredGenre,
       });
       return response as BGM;
     },
@@ -192,6 +194,8 @@ export default function Home() {
           onApplyLocation={handleApplyLocation}
           onSelectBgm={handleSelectBgm}
           onClearHistory={handleClearHistory}
+          preferredGenre={preferredGenre}
+          onGenreChange={setPreferredGenre}
         />
       </div>
     </div>

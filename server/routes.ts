@@ -55,7 +55,8 @@ export async function registerRoutes(
       
       const bgmData = await generateBGMDescription(
         validatedData.weather,
-        validatedData.timeOfDay
+        validatedData.timeOfDay,
+        validatedData.preferredGenre ?? "auto"
       );
       
       const bgm = await storage.createBgm(bgmData);

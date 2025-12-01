@@ -4,7 +4,8 @@ import { PlayerControls } from "./player-controls";
 import { LocationSettings } from "./location-settings";
 import { BGMHistory } from "./bgm-history";
 import { ThemeToggle } from "./theme-toggle";
-import type { WeatherData, TimeOfDay, BGM } from "@shared/schema";
+import { GenreSelector } from "./genre-selector";
+import type { WeatherData, TimeOfDay, BGM, MusicGenre } from "@shared/schema";
 
 interface PlayerCardProps {
   weather: WeatherData | null;
@@ -33,6 +34,8 @@ interface PlayerCardProps {
   onApplyLocation: () => void;
   onSelectBgm: (bgm: BGM) => void;
   onClearHistory: () => void;
+  preferredGenre: MusicGenre;
+  onGenreChange: (genre: MusicGenre) => void;
 }
 
 export function PlayerCard({
@@ -62,6 +65,8 @@ export function PlayerCard({
   onApplyLocation,
   onSelectBgm,
   onClearHistory,
+  preferredGenre,
+  onGenreChange,
 }: PlayerCardProps) {
   return (
     <div className="w-full max-w-xl mx-auto">
@@ -97,6 +102,14 @@ export function PlayerCard({
             timeOfDay={timeOfDay}
             isLoading={isLoadingWeather}
           />
+
+          <div className="flex justify-center py-2">
+            <GenreSelector
+              value={preferredGenre}
+              onChange={onGenreChange}
+              disabled={isGenerating}
+            />
+          </div>
 
           <div className="py-4">
             <BGMInfo bgm={currentBgm} isGenerating={isGenerating} />

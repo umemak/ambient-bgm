@@ -18,6 +18,31 @@ export type WeatherCondition = typeof weatherConditions[number];
 export const timeOfDayTypes = ["morning", "afternoon", "evening", "night"] as const;
 export type TimeOfDay = typeof timeOfDayTypes[number];
 
+// Music genre types for user selection
+export const musicGenres = [
+  "auto",
+  "lo-fi",
+  "jazz",
+  "classical",
+  "electronic",
+  "ambient",
+  "acoustic",
+  "piano"
+] as const;
+
+export type MusicGenre = typeof musicGenres[number];
+
+export const genreLabels: Record<MusicGenre, string> = {
+  "auto": "Auto (Weather-based)",
+  "lo-fi": "Lo-Fi Hip Hop",
+  "jazz": "Jazz",
+  "classical": "Classical",
+  "electronic": "Electronic",
+  "ambient": "Ambient",
+  "acoustic": "Acoustic",
+  "piano": "Piano"
+};
+
 // Weather data schema
 export const weatherDataSchema = z.object({
   condition: z.enum(weatherConditions),
@@ -72,6 +97,7 @@ export type UserSettings = z.infer<typeof userSettingsSchema>;
 export const generateBgmRequestSchema = z.object({
   weather: weatherDataSchema,
   timeOfDay: z.enum(timeOfDayTypes),
+  preferredGenre: z.enum(musicGenres).optional().default("auto"),
 });
 
 export type GenerateBGMRequest = z.infer<typeof generateBgmRequestSchema>;

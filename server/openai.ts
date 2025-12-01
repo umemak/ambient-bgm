@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { WeatherData, TimeOfDay, InsertBGM } from "@shared/schema";
+import type { WeatherData, TimeOfDay, InsertBGM, MusicGenre } from "@shared/schema";
 
 // This is using Replit's AI Integrations service, which provides OpenAI-compatible API access
 // without requiring your own OpenAI API key.
@@ -17,10 +17,26 @@ interface BGMGenerationResult {
   tempo: "slow" | "moderate" | "upbeat";
 }
 
+const genreDescriptions: Record<MusicGenre, string> = {
+  "auto": "",
+  "lo-fi": "Lo-Fi Hip Hop with chill beats, vinyl crackles, and mellow melodies",
+  "jazz": "Jazz with smooth piano, saxophone, and subtle percussion",
+  "classical": "Classical music with orchestral instruments, focusing on calm and elegant compositions",
+  "electronic": "Electronic music with synthesizers, ambient pads, and modern production",
+  "ambient": "Ambient soundscapes with atmospheric textures and minimal melodies",
+  "acoustic": "Acoustic music with guitar, gentle strings, and natural sounds",
+  "piano": "Solo piano music with expressive melodies and emotional depth"
+};
+
 export async function generateBGMDescription(
   weather: WeatherData,
-  timeOfDay: TimeOfDay
+  timeOfDay: TimeOfDay,
+  preferredGenre: MusicGenre = "auto"
 ): Promise<InsertBGM> {
+  const genreInstruction = preferredGenre === "auto" 
+    ? "Choose the most suitable genre based on the weather and time."
+    : `The user prefers ${genreDescriptions[preferredGenre]}. Generate music in this style.`;
+
   const prompt = `You are a music curator specializing in ambient and focus music. Based on the current weather and time of day, suggest a perfect work BGM (background music) for concentration and productivity.
 
 Current conditions:
@@ -28,6 +44,8 @@ Current conditions:
 - Temperature: ${weather.temperature}°C
 - Time of Day: ${timeOfDay}
 - Location: ${weather.location}
+
+Genre preference: ${genreInstruction}
 
 Generate a unique, creative BGM suggestion that matches this atmosphere. The music should help with focus and work.
 
