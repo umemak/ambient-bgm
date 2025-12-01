@@ -1,37 +1,48 @@
-import { type User, type InsertUser } from "@shared/schema";
+import type { BGM, InsertBGM } from "@shared/schema";
 import { randomUUID } from "crypto";
 
-// modify the interface with any CRUD methods
-// you might need
-
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getBgm(id: string): Promise<BGM | undefined>;
+  getAllBgms(): Promise<BGM[]>;
+  createBgm(bgm: InsertBGM): Promise<BGM>;
+  deleteBgm(id: string): Promise<boolean>;
+  clearBgms(): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
-  private users: Map<string, User>;
+  private bgms: Map<string, BGM>;
 
   constructor() {
-    this.users = new Map();
+    this.bgms = new Map();
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async getBgm(id: string): Promise<BGM | undefined> {
+    return this.bgms.get(id);
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
+  async getAllBgms(): Promise<BGM[]> {
+    return Array.from(this.bgms.values()).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async createBgm(insertBgm: InsertBGM): Promise<BGM> {
     const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+    const bgm: BGM = {
+      ...insertBgm,
+      id,
+      createdAt: new Date().toISOString(),
+    };
+    this.bgms.set(id, bgm);
+    return bgm;
+  }
+
+  async deleteBgm(id: string): Promise<boolean> {
+    return this.bgms.delete(id);
+  }
+
+  async clearBgms(): Promise<void> {
+    this.bgms.clear();
   }
 }
 
