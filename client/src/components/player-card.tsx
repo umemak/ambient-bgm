@@ -1,4 +1,4 @@
-import { Music2, Loader2 } from "lucide-react";
+import { Music2, Loader2, Download } from "lucide-react";
 import { WeatherDisplay } from "./weather-display";
 import { BGMInfo } from "./bgm-info";
 import { PlayerControls } from "./player-controls";
@@ -157,11 +157,20 @@ export function PlayerCard({
           )}
 
           {currentBgm?.audioUrl && (
-            <div className="flex justify-center pb-4">
+            <div className="flex justify-center items-center gap-4 pb-4">
               <span className="text-white/60 text-sm flex items-center gap-2">
                 <Music2 className="w-4 h-4" />
                 Audio Ready
               </span>
+              <a
+                href={currentBgm.audioUrl}
+                download={`${currentBgm.title.replace(/[^a-zA-Z0-9]/g, '_')}.mp3`}
+                className="glass text-white hover:bg-white/20 rounded-full p-2 transition-colors"
+                data-testid="button-download-audio"
+                title="Download Audio"
+              >
+                <Download className="w-4 h-4" />
+              </a>
             </div>
           )}
 
