@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { getWeatherByCoordinates, getWeatherByCity } from "./weather";
 import { generateBGMDescription } from "./openai";
+import { generateMusic, isElevenLabsConfigured } from "./elevenlabs";
 import { generateBgmRequestSchema, insertPlaylistSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -166,6 +167,70 @@ export async function registerRoutes(
         error: "Failed to clear BGMs",
       });
     }
+  });
+
+  // Generate audio for a BGM
+  app.post("/api/bgm/:id/audio", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid BGM ID",
+        });
+      }
+
+      if (!isElevenLabsConfigured()) {
+        return res.status(503).json({
+          success: false,
+          error: "Music generation service not configured. Please add ELEVENLABS_API_KEY.",
+        });
+      }
+
+      const bgm = await storage.getBgm(id);
+      if (!bgm) {
+        return res.status(404).json({
+          success: false,
+          error: "BGM not found",
+        });
+      }
+
+      const audioUrl = await generateMusic({
+        title: bgm.title,
+        description: bgm.description,
+        mood: bgm.mood,
+        genre: bgm.genre,
+        tempo: bgm.tempo as "slow" | "moderate" | "upbeat",
+        durationMs: 30000,
+      });
+
+      if (!audioUrl) {
+        return res.status(500).json({
+          success: false,
+          error: "Failed to generate audio",
+        });
+      }
+
+      const updatedBgm = await storage.updateBgmAudioUrl(id, audioUrl);
+      
+      return res.json({ success: true, data: updatedBgm });
+    } catch (error) {
+      console.error("Audio generation error:", error);
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to generate audio",
+      });
+    }
+  });
+
+  // Check if music generation is available
+  app.get("/api/music/status", async (req, res) => {
+    return res.json({
+      success: true,
+      data: {
+        configured: isElevenLabsConfigured(),
+      },
+    });
   });
 
   // Toggle favorite status

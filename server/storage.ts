@@ -10,6 +10,7 @@ export interface IStorage {
   clearBgms(): Promise<void>;
   toggleFavorite(id: number): Promise<BGMDb | undefined>;
   getFavorites(): Promise<BGMDb[]>;
+  updateBgmAudioUrl(id: number, audioUrl: string): Promise<BGMDb | undefined>;
   
   getPlaylist(id: number): Promise<Playlist | undefined>;
   getAllPlaylists(): Promise<Playlist[]>;
@@ -64,6 +65,15 @@ export class DatabaseStorage implements IStorage {
 
   async getFavorites(): Promise<BGMDb[]> {
     return db.select().from(bgms).where(eq(bgms.isFavorite, true)).orderBy(desc(bgms.createdAt));
+  }
+
+  async updateBgmAudioUrl(id: number, audioUrl: string): Promise<BGMDb | undefined> {
+    const [updated] = await db
+      .update(bgms)
+      .set({ audioUrl })
+      .where(eq(bgms.id, id))
+      .returning();
+    return updated;
   }
 
   async getPlaylist(id: number): Promise<Playlist | undefined> {

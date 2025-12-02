@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { WeatherBackground } from "@/components/weather-background";
@@ -19,6 +19,7 @@ const DEFAULT_WEATHER: WeatherData = {
 
 export default function Home() {
   const { toast } = useToast();
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(getTimeOfDay());
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useLocalStorage("ambient-bgm-volume", 0.7);
@@ -28,6 +29,7 @@ export default function Home() {
   const [currentBgm, setCurrentBgm] = useState<BGM | null>(null);
   const [currentHistoryIndex, setCurrentHistoryIndex] = useState(-1);
   const [preferredGenre, setPreferredGenre] = useLocalStorage<MusicGenre>("ambient-bgm-preferred-genre", "auto");
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
 
   const bgmHistoryQuery = useQuery<{ success: boolean; data: BGM[] }>({
     queryKey: ["/api/bgm"],
@@ -35,6 +37,17 @@ export default function Home() {
   });
   
   const bgmHistory = useMemo(() => bgmHistoryQuery.data?.data ?? [], [bgmHistoryQuery.data]);
+
+  const musicStatusQuery = useQuery<{ success: boolean; data: { configured: boolean } }>({
+    queryKey: ["/api/music", "status"],
+    queryFn: async () => {
+      const res = await fetch("/api/music/status");
+      return res.json();
+    },
+    staleTime: Infinity,
+  });
+
+  const isMusicServiceConfigured = musicStatusQuery.data?.data?.configured ?? false;
 
   useEffect(() => {
     if (currentBgm && bgmHistory.length > 0) {
@@ -150,6 +163,36 @@ export default function Home() {
     },
   });
 
+  const generateAudioMutation = useMutation({
+    mutationFn: async (id: number) => {
+      setIsGeneratingAudio(true);
+      const response = await apiRequest("POST", `/api/bgm/${id}/audio`);
+      return response as BGM;
+    },
+    onSuccess: (updatedBgm) => {
+      setCurrentBgm(updatedBgm);
+      queryClient.setQueryData<{ success: boolean; data: BGM[] }>(["/api/bgm"], (old) => ({
+        success: true,
+        data: old?.data?.map(b => b.id === updatedBgm.id ? updatedBgm : b) ?? [],
+      }));
+      toast({
+        title: "Audio Generated",
+        description: "Music is ready to play!",
+      });
+    },
+    onError: (error: any) => {
+      console.error("Failed to generate audio:", error);
+      toast({
+        title: "Audio Generation Failed",
+        description: error?.message || "Could not generate audio. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      setIsGeneratingAudio(false);
+    },
+  });
+
   const toggleFavoriteMutation = useMutation({
     mutationFn: async (id: number) => {
       const response = await apiRequest("POST", `/api/bgm/${id}/favorite`);
@@ -182,6 +225,32 @@ export default function Home() {
     },
   });
 
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = isMuted ? 0 : volume;
+    }
+  }, [volume, isMuted]);
+
+  useEffect(() => {
+    if (audioRef.current && currentBgm?.audioUrl) {
+      if (isPlaying) {
+        audioRef.current.play().catch(console.error);
+      } else {
+        audioRef.current.pause();
+      }
+    }
+  }, [isPlaying, currentBgm?.audioUrl]);
+
+  useEffect(() => {
+    if (currentBgm?.audioUrl && audioRef.current) {
+      audioRef.current.src = currentBgm.audioUrl;
+      audioRef.current.load();
+      if (isPlaying) {
+        audioRef.current.play().catch(console.error);
+      }
+    }
+  }, [currentBgm?.audioUrl]);
+
   const handlePlayPause = useCallback(() => {
     if (!currentBgm && !generateBgmMutation.isPending) {
       generateBgmMutation.mutate();
@@ -189,6 +258,12 @@ export default function Home() {
       setIsPlaying((prev) => !prev);
     }
   }, [currentBgm, generateBgmMutation]);
+
+  const handleGenerateAudio = useCallback(() => {
+    if (currentBgm && !generateAudioMutation.isPending) {
+      generateAudioMutation.mutate(currentBgm.id);
+    }
+  }, [currentBgm, generateAudioMutation]);
 
   const handleRefresh = useCallback(() => {
     if (!generateBgmMutation.isPending) {
@@ -265,6 +340,13 @@ export default function Home() {
     <div className="min-h-screen relative overflow-hidden">
       <WeatherBackground condition={displayCondition} timeOfDay={timeOfDay} />
       
+      <audio
+        ref={audioRef}
+        loop
+        onEnded={() => setIsPlaying(false)}
+        data-testid="audio-player"
+      />
+      
       <div className="relative z-10 min-h-screen flex items-center justify-center p-4 md:p-8">
         <PlayerCard
           weather={weatherQuery.isLoading ? null : displayWeather}
@@ -297,6 +379,9 @@ export default function Home() {
           onToggleFavorite={handleToggleFavorite}
           preferredGenre={preferredGenre}
           onGenreChange={setPreferredGenre}
+          isMusicServiceConfigured={isMusicServiceConfigured}
+          isGeneratingAudio={isGeneratingAudio}
+          onGenerateAudio={handleGenerateAudio}
         />
       </div>
     </div>

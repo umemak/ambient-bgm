@@ -1,3 +1,4 @@
+import { Music2, Loader2 } from "lucide-react";
 import { WeatherDisplay } from "./weather-display";
 import { BGMInfo } from "./bgm-info";
 import { PlayerControls } from "./player-controls";
@@ -6,6 +7,7 @@ import { BGMHistory } from "./bgm-history";
 import { PlaylistManager } from "./playlist-manager";
 import { ThemeToggle } from "./theme-toggle";
 import { GenreSelector } from "./genre-selector";
+import { Button } from "@/components/ui/button";
 import type { WeatherData, TimeOfDay, BGM, MusicGenre } from "@shared/schema";
 
 interface PlayerCardProps {
@@ -39,6 +41,9 @@ interface PlayerCardProps {
   onToggleFavorite?: (id: number) => void;
   preferredGenre: MusicGenre;
   onGenreChange: (genre: MusicGenre) => void;
+  isMusicServiceConfigured?: boolean;
+  isGeneratingAudio?: boolean;
+  onGenerateAudio?: () => void;
 }
 
 export function PlayerCard({
@@ -72,6 +77,9 @@ export function PlayerCard({
   onToggleFavorite,
   preferredGenre,
   onGenreChange,
+  isMusicServiceConfigured,
+  isGeneratingAudio,
+  onGenerateAudio,
 }: PlayerCardProps) {
   return (
     <div className="w-full max-w-xl mx-auto">
@@ -124,6 +132,38 @@ export function PlayerCard({
           <div className="py-4">
             <BGMInfo bgm={currentBgm} isGenerating={isGenerating} onToggleFavorite={onToggleFavorite} />
           </div>
+
+          {isMusicServiceConfigured && currentBgm && !currentBgm.audioUrl && (
+            <div className="flex justify-center pb-4">
+              <Button
+                onClick={onGenerateAudio}
+                disabled={isGeneratingAudio}
+                className="glass text-white hover:bg-white/20 gap-2"
+                data-testid="button-generate-audio"
+              >
+                {isGeneratingAudio ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Generating Audio...
+                  </>
+                ) : (
+                  <>
+                    <Music2 className="w-4 h-4" />
+                    Generate Audio
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {currentBgm?.audioUrl && (
+            <div className="flex justify-center pb-4">
+              <span className="text-white/60 text-sm flex items-center gap-2">
+                <Music2 className="w-4 h-4" />
+                Audio Ready
+              </span>
+            </div>
+          )}
 
           <PlayerControls
             isPlaying={isPlaying}
