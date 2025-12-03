@@ -78,6 +78,27 @@ npx wrangler dev worker/index.ts --local
 - D1はベータ版で、本番環境での使用には注意が必要です
 - ElevenLabs音声生成はオプションで、APIキーがない場合はスキップされます
 
+## Replit版との違い
+
+### 認証
+- **Replit版**: Replit Auth（Google/GitHub/Appleログイン）
+- **Cloudflare版**: デモログインのみ（本番運用には別途OAuth設定が必要）
+
+本番環境で認証が必要な場合は以下を検討してください：
+- [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/)
+- [Auth0](https://auth0.com/) + Cloudflare Workers統合
+- カスタムOAuth実装
+
+### 音声ファイル保存
+- **Replit版**: サーバーのファイルシステムに保存
+- **Cloudflare版**: Base64データURLとしてデータベースに保存
+
+大きな音声ファイルを保存する場合は、[Cloudflare R2](https://developers.cloudflare.com/r2/)の使用を推奨します。
+
+### データベース
+- **Replit版**: PostgreSQL + Drizzle ORM
+- **Cloudflare版**: D1 (SQLite)
+
 ## トラブルシューティング
 
 ### データベース接続エラー
