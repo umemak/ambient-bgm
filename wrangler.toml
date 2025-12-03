@@ -1,0 +1,17 @@
+# Cloudflare Workers/Pages configuration
+name = "ambient-bgm"
+compatibility_date = "2024-12-01"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "ambient-bgm-db"
+database_id = "local"
+
+# Environment variables (set these in Cloudflare dashboard)
+[vars]
+ENVIRONMENT = "production"
+
+# For local development
+[dev]
+port = 8787
