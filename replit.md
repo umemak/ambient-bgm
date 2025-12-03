@@ -4,14 +4,16 @@
 A web application that generates work-suitable BGM (background music) based on the current weather and time of day. The app uses AI to create unique ambient music descriptions that match the user's environment, and can generate actual music using ElevenLabs Music API.
 
 ## Key Features
+- **User Authentication**: Login with Google, GitHub, Apple, or email via Replit Auth
 - **Location Detection**: Auto-detect via browser GPS or manual city input
 - **Weather Integration**: Real-time weather data from Open-Meteo API (free, no key required)
 - **AI BGM Generation**: Uses OpenAI to generate creative BGM descriptions based on weather + time
 - **Music Generation**: ElevenLabs Music API for actual audio generation (requires paid API key)
+- **Audio Download**: Download generated music files as MP3
 - **Genre Selection**: Choose from Lo-Fi, Jazz, Classical, Electronic, Ambient, Acoustic, Piano, or Auto
 - **Favorites**: Mark BGMs as favorites with heart icon toggle
 - **Playlists**: Create custom playlists and add/remove tracks
-- **PostgreSQL Database**: Persistent storage for BGMs, favorites, and playlists
+- **PostgreSQL Database**: Persistent storage for users, BGMs, favorites, and playlists
 - **Atmospheric UI**: Weather-responsive backgrounds with rain, snow, stars effects
 - **Theme Support**: Light, dark, and system theme options
 - **Glass Morphism Design**: Modern frosted-glass UI components

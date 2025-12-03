@@ -1,8 +1,13 @@
-import { bgms, playlists, playlistItems, type BGMDb, type InsertBGMDb, type Playlist, type InsertPlaylist, type PlaylistItem } from "@shared/schema";
+import { bgms, playlists, playlistItems, users, type BGMDb, type InsertBGMDb, type Playlist, type InsertPlaylist, type PlaylistItem, type User, type UpsertUser } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
 
 export interface IStorage {
+  // User operations (required for Replit Auth)
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
+  
+  // BGM operations
   getBgm(id: number): Promise<BGMDb | undefined>;
   getAllBgms(): Promise<BGMDb[]>;
   createBgm(bgm: InsertBGMDb): Promise<BGMDb>;
@@ -12,6 +17,7 @@ export interface IStorage {
   getFavorites(): Promise<BGMDb[]>;
   updateBgmAudioUrl(id: number, audioUrl: string): Promise<BGMDb | undefined>;
   
+  // Playlist operations
   getPlaylist(id: number): Promise<Playlist | undefined>;
   getAllPlaylists(): Promise<Playlist[]>;
   createPlaylist(playlist: InsertPlaylist): Promise<Playlist>;
@@ -24,6 +30,28 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // User operations (required for Replit Auth)
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  }
+
+  // BGM operations
   async getBgm(id: number): Promise<BGMDb | undefined> {
     const [bgm] = await db.select().from(bgms).where(eq(bgms.id, id));
     return bgm || undefined;

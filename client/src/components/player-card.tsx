@@ -7,10 +7,12 @@ import { BGMHistory } from "./bgm-history";
 import { PlaylistManager } from "./playlist-manager";
 import { ThemeToggle } from "./theme-toggle";
 import { GenreSelector } from "./genre-selector";
+import { UserMenu } from "./user-menu";
 import { Button } from "@/components/ui/button";
-import type { WeatherData, TimeOfDay, BGM, MusicGenre } from "@shared/schema";
+import type { WeatherData, TimeOfDay, BGM, MusicGenre, User } from "@shared/schema";
 
 interface PlayerCardProps {
+  user: User;
   weather: WeatherData | null;
   timeOfDay: TimeOfDay;
   currentBgm: BGM | null;
@@ -47,6 +49,7 @@ interface PlayerCardProps {
 }
 
 export function PlayerCard({
+  user,
   weather,
   timeOfDay,
   currentBgm,
@@ -111,6 +114,7 @@ export function PlayerCard({
               onSelectBgm={onSelectBgm}
             />
             <ThemeToggle />
+            <UserMenu user={user} />
           </div>
         </div>
 

@@ -5,6 +5,7 @@ import { WeatherBackground } from "@/components/weather-background";
 import { PlayerCard } from "@/components/player-card";
 import { useGeolocation } from "@/hooks/use-geolocation";
 import { useLocalStorage } from "@/hooks/use-local-storage";
+import { useAuth } from "@/hooks/useAuth";
 import { getTimeOfDay } from "@/lib/weather-utils";
 import type { WeatherData, BGM, TimeOfDay, WeatherCondition, MusicGenre } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +20,7 @@ const DEFAULT_WEATHER: WeatherData = {
 
 export default function Home() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(getTimeOfDay());
   const [isPlaying, setIsPlaying] = useState(false);
@@ -349,6 +351,7 @@ export default function Home() {
       
       <div className="relative z-10 min-h-screen flex items-center justify-center p-4 md:p-8">
         <PlayerCard
+          user={user!}
           weather={weatherQuery.isLoading ? null : displayWeather}
           timeOfDay={timeOfDay}
           currentBgm={currentBgm}
