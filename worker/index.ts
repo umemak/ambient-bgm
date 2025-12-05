@@ -8,7 +8,7 @@ import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 // Types
 interface Env {
   DB: D1Database;
-  OPENAI_API_KEY: string;
+  AI: any; // Cloudflare Workers AI binding
   ELEVENLABS_API_KEY?: string;
   SESSION_SECRET: string;
   ASSETS: Fetcher;
@@ -352,21 +352,24 @@ Respond in JSON format:
   "tempo": "slow/moderate/upbeat"
 }`;
 
-    const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${c.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [{ role: 'user', content: prompt }],
-        response_format: { type: 'json_object' },
-      }),
-    });
-
-    if (!openaiRes.ok) {
-      // Fallback if OpenAI fails
+    // Use Cloudflare Workers AI
+    let bgmData;
+    try {
+      const aiResponse = await c.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+        messages: [
+          { role: 'system', content: 'You are a music expert. Always respond with valid JSON only, no markdown or extra text.' },
+          { role: 'user', content: prompt }
+        ],
+      });
+      
+      // Parse AI response
+      const responseText = aiResponse.response || JSON.stringify(aiResponse);
+      // Remove markdown code blocks if present
+      const cleanedText = responseText.replace(/```json\n?|```\n?/g, '').trim();
+      bgmData = JSON.parse(cleanedText);
+    } catch (error) {
+      console.error('Cloudflare AI error:', error);
+      // Fallback if AI fails
       const fallback = {
         title: `${weather.condition.charAt(0).toUpperCase() + weather.condition.slice(1)} ${timeOfDay.charAt(0).toUpperCase() + timeOfDay.slice(1)} Vibes`,
         description: `Perfect ambient music for a ${weather.condition} ${timeOfDay}. Let the sounds help you focus and stay productive.`,
@@ -391,9 +394,6 @@ Respond in JSON format:
 
       return c.json({ success: true, data: transformBgm(result) });
     }
-
-    const openaiData = await openaiRes.json() as any;
-    const bgmData = JSON.parse(openaiData.choices[0].message.content);
 
     const result = await db.prepare(
       `INSERT INTO bgms (title, description, mood, genre, tempo, weather_condition, time_of_day)

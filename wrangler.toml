@@ -6,7 +6,11 @@ compatibility_date = "2024-12-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "ambient-bgm-db"
-database_id = "local"
+database_id = "f1f245ad-8b89-47c2-94f1-56ffcd2013ac"
+
+# Workers AI binding
+[ai]
+binding = "AI"
 
 # Environment variables (set these in Cloudflare dashboard)
 [vars]
