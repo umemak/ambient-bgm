@@ -153,17 +153,30 @@ app.post('/api/auth/logout', async (c) => {
   return c.json({ success: true });
 });
 
-// Demo login for testing (creates a demo user session)
-app.post('/api/auth/demo-login', async (c) => {
+// Login endpoint with username/password
+app.post('/api/auth/login', zValidator('json', z.object({
+  username: z.string().min(1),
+  password: z.string().min(1),
+})), async (c) => {
+  const { username, password } = c.req.valid('json');
   const db = c.env.DB;
-  const demoUserId = 'demo-user-001';
+  
+  // Fixed credentials for now
+  const VALID_USERNAME = 'testuser';
+  const VALID_PASSWORD = 'testpassword0';
+  
+  if (username !== VALID_USERNAME || password !== VALID_PASSWORD) {
+    return c.json({ error: 'Invalid username or password' }, 401);
+  }
   
   try {
-    // Create or get demo user
+    const userId = 'test-user-001';
+    
+    // Create or get user
     await db.prepare(
       `INSERT OR IGNORE INTO users (id, email, first_name, last_name)
        VALUES (?, ?, ?, ?)`
-    ).bind(demoUserId, 'demo@example.com', 'Demo', 'User').run();
+    ).bind(userId, 'testuser@example.com', 'Test', 'User').run();
     
     // Create session
     const sessionId = generateSessionId();
@@ -171,9 +184,9 @@ app.post('/api/auth/demo-login', async (c) => {
     const expireTime = Math.floor(Date.now() / 1000) + (SESSION_EXPIRY_DAYS * 24 * 60 * 60);
     
     const sessionData: Session = {
-      userId: demoUserId,
-      email: 'demo@example.com',
-      firstName: 'Demo',
+      userId: userId,
+      email: 'testuser@example.com',
+      firstName: 'Test',
       lastName: 'User',
       profileImageUrl: null,
     };
@@ -191,15 +204,15 @@ app.post('/api/auth/demo-login', async (c) => {
     });
     
     return c.json({
-      id: demoUserId,
-      email: 'demo@example.com',
-      firstName: 'Demo',
+      id: userId,
+      email: 'testuser@example.com',
+      firstName: 'Test',
       lastName: 'User',
       profileImageUrl: null,
     });
   } catch (error) {
-    console.error('Demo login error:', error);
-    return c.json({ success: false, error: 'Login failed' }, 500);
+    console.error('Login error:', error);
+    return c.json({ error: 'Login failed' }, 500);
   }
 });
 
