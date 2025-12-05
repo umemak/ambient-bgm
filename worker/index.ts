@@ -561,24 +561,20 @@ app.post('/api/bgm/:id/audio', async (c) => {
       }, response.status);
     }
     
-    // Get audio data
-    const audioBuffer = await response.arrayBuffer();
+    // TODO: Implement Cloudflare R2 storage for audio files
+    // D1 database has size limits and cannot store large audio files
+    // For now, mark as generated but don't store the actual audio
     
-    // Convert to base64 for storage in D1
-    const uint8Array = new Uint8Array(audioBuffer);
-    let binary = '';
-    for (let i = 0; i < uint8Array.length; i++) {
-      binary += String.fromCharCode(uint8Array[i]);
-    }
-    const base64Audio = btoa(binary);
-    const audioDataUrl = `data:audio/mpeg;base64,${base64Audio}`;
-    
-    // Update BGM with audio URL
+    // Mark BGM as having audio generated (but not stored)
     const updatedBgm = await db.prepare(
       'UPDATE bgms SET audio_url = ? WHERE id = ? RETURNING *'
-    ).bind(audioDataUrl, id).first();
+    ).bind('generated', id).first();
     
-    return c.json({ success: true, data: transformBgm(updatedBgm) });
+    return c.json({ 
+      success: true, 
+      data: transformBgm(updatedBgm),
+      message: 'Music generated successfully! Note: Audio storage requires Cloudflare R2 setup. Currently showing demo status only.'
+    });
   } catch (error) {
     console.error('Audio generation error:', error);
     return c.json({ success: false, error: 'Failed to generate audio' }, 500);
