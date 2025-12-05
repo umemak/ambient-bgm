@@ -1,8 +1,30 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Music, Cloud, Sun, CloudRain, Sparkles } from "lucide-react";
+import { Music, Cloud, Sun, CloudRain, Sparkles, Loader2 } from "lucide-react";
 import { WeatherBackground } from "@/components/weather-background";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Landing() {
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleDemoLogin = async () => {
+    setIsLoading(true);
+    try {
+      await apiRequest("POST", "/api/auth/demo-login");
+      // Reload page to trigger authentication check
+      window.location.reload();
+    } catch (error) {
+      toast({
+        title: "ログインエラー",
+        description: "ログインに失敗しました。もう一度お試しください。",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen relative overflow-hidden">
       <WeatherBackground condition="clear" timeOfDay="night" />
@@ -38,17 +60,25 @@ export default function Landing() {
             </div>
           </div>
           
-          <a href="/api/login" data-testid="button-login">
-            <Button 
-              size="lg" 
-              className="w-full glass text-white hover:bg-white/20 text-lg py-6"
-            >
-              ログインして始める
-            </Button>
-          </a>
+          <Button 
+            onClick={handleDemoLogin}
+            disabled={isLoading}
+            size="lg" 
+            className="w-full glass text-white hover:bg-white/20 text-lg py-6"
+            data-testid="button-demo-login"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                ログイン中...
+              </>
+            ) : (
+              "デモログインして始める"
+            )}
+          </Button>
           
           <p className="text-white/40 text-sm mt-4">
-            Google、GitHub、またはメールでログイン
+            デモアカウントでアプリを試せます
           </p>
         </div>
         

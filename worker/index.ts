@@ -125,18 +125,15 @@ app.get('/api/auth/user', async (c) => {
   const session = await getSession(c);
   
   if (!session?.userId) {
-    return c.json({ success: true, data: null });
+    return c.json(null);
   }
   
   return c.json({
-    success: true,
-    data: {
-      id: session.userId,
-      email: session.email,
-      firstName: session.firstName,
-      lastName: session.lastName,
-      profileImageUrl: session.profileImageUrl,
-    },
+    id: session.userId,
+    email: session.email,
+    firstName: session.firstName,
+    lastName: session.lastName,
+    profileImageUrl: session.profileImageUrl,
   });
 });
 
@@ -194,14 +191,11 @@ app.post('/api/auth/demo-login', async (c) => {
     });
     
     return c.json({
-      success: true,
-      data: {
-        id: demoUserId,
-        email: 'demo@example.com',
-        firstName: 'Demo',
-        lastName: 'User',
-        profileImageUrl: null,
-      },
+      id: demoUserId,
+      email: 'demo@example.com',
+      firstName: 'Demo',
+      lastName: 'User',
+      profileImageUrl: null,
     });
   } catch (error) {
     console.error('Demo login error:', error);
