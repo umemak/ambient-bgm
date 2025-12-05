@@ -12,6 +12,11 @@ database_id = "f1f245ad-8b89-47c2-94f1-56ffcd2013ac"
 [ai]
 binding = "AI"
 
+# R2 Storage binding for music files
+[[r2_buckets]]
+binding = "MUSIC_BUCKET"
+bucket_name = "ambient-bgm-music"
+
 # Environment variables (set these in Cloudflare dashboard)
 [vars]
 ENVIRONMENT = "production"

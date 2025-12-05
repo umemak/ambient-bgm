@@ -9,6 +9,7 @@ import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 interface Env {
   DB: D1Database;
   AI: any; // Cloudflare Workers AI binding
+  MUSIC_BUCKET: R2Bucket; // R2 storage for music files
   ELEVENLABS_API_KEY?: string;
   SESSION_SECRET: string;
   ASSETS: Fetcher;
@@ -561,19 +562,27 @@ app.post('/api/bgm/:id/audio', async (c) => {
       }, response.status);
     }
     
-    // TODO: Implement Cloudflare R2 storage for audio files
-    // D1 database has size limits and cannot store large audio files
-    // For now, mark as generated but don't store the actual audio
+    // Store audio file in R2
+    const audioBuffer = await response.arrayBuffer();
+    const fileName = `bgm_${id}_${Date.now()}.mp3`;
     
-    // Mark BGM as having audio generated (but not stored)
+    // Upload to R2
+    await c.env.MUSIC_BUCKET.put(fileName, audioBuffer, {
+      httpMetadata: {
+        contentType: 'audio/mpeg',
+      },
+    });
+    
+    // Store R2 file reference in database
+    const audioUrl = `/api/music/${fileName}`;
     const updatedBgm = await db.prepare(
       'UPDATE bgms SET audio_url = ? WHERE id = ? RETURNING *'
-    ).bind('generated', id).first();
+    ).bind(audioUrl, id).first();
     
     return c.json({ 
       success: true, 
       data: transformBgm(updatedBgm),
-      message: 'Music generated successfully! Note: Audio storage requires Cloudflare R2 setup. Currently showing demo status only.'
+      message: 'Music generated and stored successfully!'
     });
   } catch (error) {
     console.error('Audio generation error:', error);
@@ -722,6 +731,28 @@ app.delete('/api/playlists/:playlistId/items/:bgmId', async (c) => {
   } catch (error) {
     console.error('Error removing from playlist:', error);
     return c.json({ success: false, error: 'Failed to remove from playlist' }, 500);
+  }
+});
+
+// Get music file from R2
+app.get('/api/music/:filename', async (c) => {
+  const filename = c.req.param('filename');
+  
+  try {
+    const object = await c.env.MUSIC_BUCKET.get(filename);
+    
+    if (!object) {
+      return c.json({ success: false, error: 'Music file not found' }, 404);
+    }
+    
+    const headers = new Headers();
+    headers.set('Content-Type', 'audio/mpeg');
+    headers.set('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
+    
+    return new Response(object.body, { headers });
+  } catch (error) {
+    console.error('Error fetching music file:', error);
+    return c.json({ success: false, error: 'Failed to fetch music file' }, 500);
   }
 });
 
