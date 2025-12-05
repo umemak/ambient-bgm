@@ -100,18 +100,6 @@ export function PlayerControls({
           data-testid="slider-volume"
         />
       </div>
-
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onRefresh}
-        disabled={isLoading}
-        className="text-white/70 hover:text-white hover:bg-white/10 gap-2"
-        data-testid="button-refresh-bgm"
-      >
-        <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
-        Generate New BGM
-      </Button>
     </div>
   );
 }

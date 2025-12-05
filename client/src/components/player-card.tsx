@@ -1,4 +1,4 @@
-import { Music2, Loader2, Download } from "lucide-react";
+import { Music2, Loader2, Download, RefreshCw } from "lucide-react";
 import { WeatherDisplay } from "./weather-display";
 import { BGMInfo } from "./bgm-info";
 import { PlayerControls } from "./player-controls";
@@ -135,6 +135,20 @@ export function PlayerCard({
 
           <div className="py-4">
             <BGMInfo bgm={currentBgm} isGenerating={isGenerating} onToggleFavorite={onToggleFavorite} />
+          </div>
+
+          <div className="flex justify-center pb-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onRefresh}
+              disabled={isLoading || isGenerating}
+              className="text-white/70 hover:text-white hover:bg-white/10 gap-2"
+              data-testid="button-refresh-bgm"
+            >
+              <RefreshCw className={`w-4 h-4 ${isGenerating ? "animate-spin" : ""}`} />
+              Generate New BGM
+            </Button>
           </div>
 
           {isMusicServiceConfigured && currentBgm && !currentBgm.audioUrl && (
