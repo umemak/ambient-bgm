@@ -60,7 +60,7 @@ const weatherDataSchema = z.object({
 const generateBgmSchema = z.object({
   weather: weatherDataSchema,
   timeOfDay: z.enum(['morning', 'afternoon', 'evening', 'night']),
-  preferredGenre: z.enum(['auto', 'lo-fi', 'jazz', 'classical', 'electronic', 'ambient', 'acoustic', 'piano']).optional().default('auto'),
+  preferredGenre: z.enum(['auto', 'lo-fi', 'jazz', 'classical', 'electronic', 'ambient', 'acoustic', 'piano', 'house', 'techno', 'dnb', 'edm', 'funk', 'disco', 'rock', 'indie']).optional().default('auto'),
 });
 
 const createPlaylistSchema = z.object({
