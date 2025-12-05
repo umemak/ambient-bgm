@@ -84,18 +84,27 @@ export default function Home() {
     }
   }, [useAutoLocation, requestLocation]);
 
+  const weatherQueryParams = useAutoLocation && location
+    ? { lat: location.latitude.toString(), lon: location.longitude.toString() }
+    : !useAutoLocation && manualLocation
+    ? { city: manualLocation }
+    : null;
+
   const weatherQuery = useQuery<{ success: boolean; data: WeatherData }>({
-    queryKey: [
-      "/api/weather",
-      useAutoLocation && location
-        ? `?lat=${location.latitude}&lon=${location.longitude}`
-        : !useAutoLocation && manualLocation
-        ? `?city=${encodeURIComponent(manualLocation)}`
-        : "",
-    ],
-    enabled: (useAutoLocation && !!location) || (!useAutoLocation && !!manualLocation),
+    queryKey: ["/api/weather", weatherQueryParams],
+    queryFn: async () => {
+      if (!weatherQueryParams) return { success: false, data: DEFAULT_WEATHER };
+      
+      const params = new URLSearchParams(weatherQueryParams);
+      const response = await fetch(`/api/weather?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error(`Weather API error: ${response.status}`);
+      }
+      return response.json();
+    },
+    enabled: !!weatherQueryParams,
     staleTime: 300000,
-    select: (data) => data,
+    retry: 2,
   });
 
   const weather = weatherQuery.data?.data ?? DEFAULT_WEATHER;
