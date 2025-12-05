@@ -284,7 +284,17 @@ app.get('/api/weather', async (c) => {
     const weatherRes = await fetch(
       `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,weather_code`
     );
+    
+    if (!weatherRes.ok) {
+      throw new Error(`Weather API returned ${weatherRes.status}`);
+    }
+    
     const weatherData = await weatherRes.json() as any;
+    
+    if (!weatherData.current) {
+      console.error('Weather data missing current:', weatherData);
+      throw new Error('Weather data format error');
+    }
 
     const weatherCode = weatherData.current.weather_code;
     let condition: string;
@@ -326,9 +336,13 @@ app.get('/api/weather', async (c) => {
         location: locationName,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Weather API error:', error);
-    return c.json({ success: false, error: 'Failed to fetch weather' }, 500);
+    return c.json({ 
+      success: false, 
+      error: 'Failed to fetch weather',
+      details: error?.message || String(error)
+    }, 500);
   }
 });
 
