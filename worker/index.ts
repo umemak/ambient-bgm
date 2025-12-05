@@ -524,8 +524,9 @@ app.post('/api/bgm/:id/audio', async (c) => {
     // Create music prompt from BGM description
     const musicPrompt = `${bgm.genre} music. ${bgm.description}. Mood: ${bgm.mood}. Tempo: ${bgm.tempo}. Perfect for ${bgm.weather_condition} weather during ${bgm.time_of_day}. Instrumental only, no vocals.`;
     
-    // Generate music with ElevenLabs
-    const response = await fetch('https://api.elevenlabs.io/v1/music/compose', {
+    // Generate music with ElevenLabs Music Generation API
+    // Using the correct music composition endpoint: /v1/music
+    const response = await fetch('https://api.elevenlabs.io/v1/music', {
       method: 'POST',
       headers: {
         'xi-api-key': c.env.ELEVENLABS_API_KEY,
@@ -533,23 +534,43 @@ app.post('/api/bgm/:id/audio', async (c) => {
       },
       body: JSON.stringify({
         prompt: musicPrompt,
-        duration_seconds: 30,
-        output_format: 'mp3_44100_128',
+        musicLengthMs: 30000, // 30 seconds in milliseconds
       }),
     });
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('ElevenLabs error:', errorText);
+      console.error('ElevenLabs error:', response.status, errorText);
+      
+      // Provide more detailed error message
+      let errorMsg = 'Failed to generate audio. ';
+      if (response.status === 401) {
+        errorMsg += 'Invalid API key.';
+      } else if (response.status === 402) {
+        errorMsg += 'Insufficient credits.';
+      } else if (response.status === 400) {
+        errorMsg += 'Invalid request parameters.';
+      } else {
+        errorMsg += `Error ${response.status}`;
+      }
+      
       return c.json({ 
         success: false, 
-        error: 'Failed to generate audio. Please try again.' 
-      }, 500);
+        error: errorMsg,
+        details: errorText
+      }, response.status);
     }
     
     // Get audio data
     const audioBuffer = await response.arrayBuffer();
-    const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+    
+    // Convert to base64 for storage in D1
+    const uint8Array = new Uint8Array(audioBuffer);
+    let binary = '';
+    for (let i = 0; i < uint8Array.length; i++) {
+      binary += String.fromCharCode(uint8Array[i]);
+    }
+    const base64Audio = btoa(binary);
     const audioDataUrl = `data:audio/mpeg;base64,${base64Audio}`;
     
     // Update BGM with audio URL
