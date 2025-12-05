@@ -72,7 +72,7 @@ export default function Landing() {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="testuser"
+                  placeholder="ユーザー名を入力"
                   className="pl-10 glass text-white placeholder:text-white/30 border-white/20 focus:border-white/40"
                   disabled={isLoading}
                 />
@@ -90,7 +90,7 @@ export default function Landing() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="パスワードを入力"
                   className="pl-10 glass text-white placeholder:text-white/30 border-white/20 focus:border-white/40"
                   disabled={isLoading}
                 />
@@ -114,12 +114,6 @@ export default function Landing() {
               )}
             </Button>
           </form>
-          
-          <div className="mt-6 p-4 rounded-lg bg-white/5 border border-white/10">
-            <p className="text-white/60 text-xs text-center">
-              テストアカウント: <span className="text-white/90 font-mono">testuser</span> / <span className="text-white/90 font-mono">testpassword0</span>
-            </p>
-          </div>
         </div>
         
         <div className="mt-8 flex items-center gap-2 text-white/40 text-sm">
