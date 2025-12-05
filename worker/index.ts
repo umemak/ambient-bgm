@@ -238,51 +238,22 @@ function transformBgm(row: any): any {
   };
 }
 
-// Weather API (proxy to Open-Meteo)
+// Weather API (using wttr.in - no API key required!)
 app.get('/api/weather', async (c) => {
-  const lat = c.req.query('lat');
-  const lon = c.req.query('lon');
   const city = c.req.query('city');
+  
+  // If no city provided, use IP-based location from Cloudflare
+  const locationQuery = city || c.req.header('CF-IPCountry') || 'auto';
 
   try {
-    let latitude: number;
-    let longitude: number;
-    let locationName: string;
-
-    if (city) {
-      // Geocode city name
-      const geoRes = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`
-      );
-      const geoData = await geoRes.json() as any;
-      
-      if (!geoData.results || geoData.results.length === 0) {
-        return c.json({ success: false, error: 'City not found' }, 404);
-      }
-      
-      latitude = geoData.results[0].latitude;
-      longitude = geoData.results[0].longitude;
-      locationName = `${geoData.results[0].name}, ${geoData.results[0].country}`;
-    } else if (lat && lon) {
-      latitude = parseFloat(lat);
-      longitude = parseFloat(lon);
-      locationName = 'Current Location';
-      
-      // Reverse geocode
-      const geoRes = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?name=${latitude},${longitude}&count=1`
-      );
-      const geoData = await geoRes.json() as any;
-      if (geoData.results?.length > 0) {
-        locationName = `${geoData.results[0].name}, ${geoData.results[0].country}`;
-      }
-    } else {
-      return c.json({ success: false, error: 'Please provide lat/lon or city' }, 400);
-    }
-
-    // Get weather data
+    // Get weather data from wttr.in
     const weatherRes = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,weather_code`
+      `https://wttr.in/${encodeURIComponent(locationQuery)}?format=j1`,
+      {
+        headers: {
+          'User-Agent': 'curl/7.68.0', // wttr.in likes curl user agent
+        },
+      }
     );
     
     if (!weatherRes.ok) {
@@ -291,48 +262,46 @@ app.get('/api/weather', async (c) => {
     
     const weatherData = await weatherRes.json() as any;
     
-    if (!weatherData.current) {
-      console.error('Weather data missing current:', weatherData);
-      throw new Error('Weather data format error');
+    if (!weatherData.current_condition || weatherData.current_condition.length === 0) {
+      throw new Error('Invalid weather data format');
     }
 
-    const weatherCode = weatherData.current.weather_code;
+    const current = weatherData.current_condition[0];
+    const location = weatherData.nearest_area?.[0];
+    
+    // Map wttr.in weather codes to our conditions
+    const weatherDesc = current.weatherDesc?.[0]?.value?.toLowerCase() || '';
     let condition: string;
-    let description: string;
-
-    if (weatherCode === 0) {
+    
+    if (weatherDesc.includes('sunny') || weatherDesc.includes('clear')) {
       condition = 'clear';
-      description = 'Clear sky';
-    } else if (weatherCode <= 3) {
+    } else if (weatherDesc.includes('cloud') || weatherDesc.includes('overcast')) {
       condition = 'cloudy';
-      description = 'Partly cloudy';
-    } else if (weatherCode <= 48) {
-      condition = 'foggy';
-      description = 'Foggy';
-    } else if (weatherCode <= 67) {
+    } else if (weatherDesc.includes('rain') || weatherDesc.includes('drizzle')) {
       condition = 'rainy';
-      description = 'Rainy';
-    } else if (weatherCode <= 77) {
+    } else if (weatherDesc.includes('snow') || weatherDesc.includes('sleet')) {
       condition = 'snowy';
-      description = 'Snowy';
-    } else if (weatherCode <= 82) {
-      condition = 'rainy';
-      description = 'Rain showers';
-    } else if (weatherCode <= 86) {
-      condition = 'snowy';
-      description = 'Snow showers';
-    } else {
+    } else if (weatherDesc.includes('thunder') || weatherDesc.includes('storm')) {
       condition = 'stormy';
-      description = 'Thunderstorm';
+    } else if (weatherDesc.includes('fog') || weatherDesc.includes('mist')) {
+      condition = 'foggy';
+    } else if (weatherDesc.includes('wind')) {
+      condition = 'windy';
+    } else {
+      condition = 'clear';
     }
+
+    const locationName = location 
+      ? `${location.areaName?.[0]?.value || 'Unknown'}, ${location.country?.[0]?.value || 'Unknown'}`
+      : city || 'Your Location';
 
     return c.json({
       success: true,
       data: {
         condition,
-        temperature: Math.round(weatherData.current.temperature_2m),
-        humidity: weatherData.current.relative_humidity_2m,
-        description,
+        temperature: parseInt(current.temp_C || '20'),
+        humidity: parseInt(current.humidity || '50'),
+        description: current.weatherDesc?.[0]?.value || 'Clear',
         location: locationName,
       },
     });
