@@ -30,7 +30,15 @@ export const musicGenres = [
   "electronic",
   "ambient",
   "acoustic",
-  "piano"
+  "piano",
+  "house",
+  "techno",
+  "dnb",
+  "edm",
+  "funk",
+  "disco",
+  "rock",
+  "indie"
 ] as const;
 
 export type MusicGenre = typeof musicGenres[number];
@@ -43,7 +51,15 @@ export const genreLabels: Record<MusicGenre, string> = {
   "electronic": "Electronic",
   "ambient": "Ambient",
   "acoustic": "Acoustic",
-  "piano": "Piano"
+  "piano": "Piano",
+  "house": "House",
+  "techno": "Techno",
+  "dnb": "Drum & Bass",
+  "edm": "EDM",
+  "funk": "Funk",
+  "disco": "Disco",
+  "rock": "Rock",
+  "indie": "Indie"
 };
 
 // Weather data schema
