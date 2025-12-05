@@ -23,6 +23,17 @@ export function UserMenu({ user }: UserMenuProps) {
     ? `${user.firstName} ${user.lastName}`
     : user.email || "User";
 
+  const handleLogout = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout failed:', error);
+      window.location.href = '/';
+    }
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -52,15 +63,9 @@ export function UserMenu({ user }: UserMenuProps) {
           )}
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <a 
-            href="/api/logout" 
-            className="flex items-center gap-2 cursor-pointer"
-            data-testid="button-logout"
-          >
-            <LogOut className="w-4 h-4" />
-            ログアウト
-          </a>
+        <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+          <LogOut className="w-4 h-4 mr-2" />
+          ログアウト
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
