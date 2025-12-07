@@ -32,6 +32,8 @@ export default function Home() {
   const [currentHistoryIndex, setCurrentHistoryIndex] = useState(-1);
   const [preferredGenre, setPreferredGenre] = useLocalStorage<MusicGenre>("ambient-bgm-preferred-genre", "auto");
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+  const [musicProvider, setMusicProvider] = useLocalStorage<'elevenlabs' | 'replicate'>("ambient-bgm-music-provider", "elevenlabs");
+  const [musicDuration, setMusicDuration] = useLocalStorage("ambient-bgm-music-duration", 30);
 
   const bgmHistoryQuery = useQuery<{ success: boolean; data: BGM[] }>({
     queryKey: ["/api/bgm"],
@@ -40,7 +42,7 @@ export default function Home() {
   
   const bgmHistory = useMemo(() => bgmHistoryQuery.data?.data ?? [], [bgmHistoryQuery.data]);
 
-  const musicStatusQuery = useQuery<{ success: boolean; data: { configured: boolean; subscription?: any } }>({
+  const musicStatusQuery = useQuery<{ success: boolean; data: { providers?: any } }>({
     queryKey: ["/api/music", "status"],
     queryFn: async () => {
       const res = await fetch("/api/music/status");
@@ -50,8 +52,9 @@ export default function Home() {
     refetchInterval: 60000, // Auto-refetch every minute
   });
 
-  const isMusicServiceConfigured = musicStatusQuery.data?.data?.configured ?? false;
-  const subscriptionInfo = musicStatusQuery.data?.data?.subscription;
+  const providersStatus = musicStatusQuery.data?.data?.providers;
+  const isMusicServiceConfigured = providersStatus?.elevenlabs?.configured || providersStatus?.replicate?.configured || false;
+  const subscriptionInfo = providersStatus?.elevenlabs?.subscription;
 
   useEffect(() => {
     if (currentBgm && bgmHistory.length > 0) {
@@ -179,7 +182,10 @@ export default function Home() {
   const generateAudioMutation = useMutation({
     mutationFn: async (id: number) => {
       setIsGeneratingAudio(true);
-      const response = await apiRequest("POST", `/api/bgm/${id}/audio`);
+      const response = await apiRequest("POST", `/api/bgm/${id}/audio`, {
+        provider: musicProvider,
+        duration: musicDuration,
+      });
       return response as BGM;
     },
     onSuccess: (updatedBgm) => {
@@ -397,6 +403,11 @@ export default function Home() {
           isGeneratingAudio={isGeneratingAudio}
           onGenerateAudio={handleGenerateAudio}
           subscriptionInfo={subscriptionInfo}
+          musicProvider={musicProvider}
+          musicDuration={musicDuration}
+          onMusicProviderChange={setMusicProvider}
+          onMusicDurationChange={setMusicDuration}
+          providersStatus={providersStatus}
         />
       </div>
     </div>

@@ -9,6 +9,7 @@ import { ThemeToggle } from "./theme-toggle";
 import { GenreSelector } from "./genre-selector";
 import { UserMenu } from "./user-menu";
 import { CreditsDisplay } from "./credits-display";
+import { MusicProviderSelector } from "./music-provider-selector";
 import { Button } from "@/components/ui/button";
 import type { WeatherData, TimeOfDay, BGM, MusicGenre, User } from "@shared/schema";
 
@@ -48,6 +49,14 @@ interface PlayerCardProps {
   isGeneratingAudio?: boolean;
   onGenerateAudio?: () => void;
   subscriptionInfo?: any;
+  musicProvider?: 'elevenlabs' | 'replicate';
+  musicDuration?: number;
+  onMusicProviderChange?: (provider: 'elevenlabs' | 'replicate') => void;
+  onMusicDurationChange?: (duration: number) => void;
+  providersStatus?: {
+    elevenlabs?: { configured: boolean; available: boolean };
+    replicate?: { configured: boolean; available: boolean };
+  };
 }
 
 export function PlayerCard({
@@ -86,6 +95,11 @@ export function PlayerCard({
   isGeneratingAudio,
   onGenerateAudio,
   subscriptionInfo,
+  musicProvider = 'elevenlabs',
+  musicDuration = 30,
+  onMusicProviderChange,
+  onMusicDurationChange,
+  providersStatus,
 }: PlayerCardProps) {
   return (
     <div className="w-full max-w-xl mx-auto">
@@ -136,6 +150,18 @@ export function PlayerCard({
               disabled={isGenerating}
             />
           </div>
+
+          {onMusicProviderChange && onMusicDurationChange && (
+            <div className="py-4">
+              <MusicProviderSelector
+                provider={musicProvider}
+                duration={musicDuration}
+                onProviderChange={onMusicProviderChange}
+                onDurationChange={onMusicDurationChange}
+                providersStatus={providersStatus}
+              />
+            </div>
+          )}
 
           <div className="py-4">
             <BGMInfo bgm={currentBgm} isGenerating={isGenerating} onToggleFavorite={onToggleFavorite} />

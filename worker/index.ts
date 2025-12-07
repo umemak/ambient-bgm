@@ -11,6 +11,7 @@ interface Env {
   AI: any; // Cloudflare Workers AI binding
   MUSIC_BUCKET: R2Bucket; // R2 storage for music files
   ELEVENLABS_API_KEY?: string;
+  REPLICATE_API_TOKEN?: string;
   SESSION_SECRET: string;
   ASSETS: Fetcher;
 }
@@ -486,16 +487,27 @@ app.post('/api/bgm/:id/favorite', async (c) => {
   }
 });
 
-// Generate audio for BGM using ElevenLabs
-app.post('/api/bgm/:id/audio', async (c) => {
+// Generate audio for BGM using selected provider
+app.post('/api/bgm/:id/audio', zValidator('json', z.object({
+  provider: z.enum(['elevenlabs', 'replicate']).optional().default('elevenlabs'),
+  duration: z.number().min(1).max(190).optional().default(30),
+})), async (c) => {
   const db = c.env.DB;
   const id = parseInt(c.req.param('id'));
+  const { provider, duration } = c.req.valid('json');
   
-  // Check if ElevenLabs is configured
-  if (!c.env.ELEVENLABS_API_KEY) {
+  // Check if selected provider is configured
+  if (provider === 'elevenlabs' && !c.env.ELEVENLABS_API_KEY) {
     return c.json({ 
       success: false, 
       error: 'ElevenLabs API key not configured. Please set ELEVENLABS_API_KEY.' 
+    }, 503);
+  }
+  
+  if (provider === 'replicate' && !c.env.REPLICATE_API_TOKEN) {
+    return c.json({ 
+      success: false, 
+      error: 'Replicate API token not configured. Please set REPLICATE_API_TOKEN.' 
     }, 503);
   }
   
@@ -515,46 +527,131 @@ app.post('/api/bgm/:id/audio', async (c) => {
     // Create music prompt from BGM description
     const musicPrompt = `${bgm.genre} music. ${bgm.description}. Mood: ${bgm.mood}. Tempo: ${bgm.tempo}. Perfect for ${bgm.weather_condition} weather during ${bgm.time_of_day}. Instrumental only, no vocals.`;
     
-    // Generate music with ElevenLabs Music Generation API
-    // Using the correct music composition endpoint: /v1/music
-    const response = await fetch('https://api.elevenlabs.io/v1/music', {
-      method: 'POST',
-      headers: {
-        'xi-api-key': c.env.ELEVENLABS_API_KEY,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        prompt: musicPrompt,
-        musicLengthMs: 30000, // 30 seconds in milliseconds
-      }),
-    });
+    let audioBuffer: ArrayBuffer;
+    let fileName: string;
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('ElevenLabs error:', response.status, errorText);
+    if (provider === 'replicate') {
+      // Generate music with Replicate MusicGen
+      const predictionResponse = await fetch('https://api.replicate.com/v1/predictions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Token ${c.env.REPLICATE_API_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          version: 'b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38',
+          input: {
+            prompt: musicPrompt,
+            duration: duration,
+            model_version: 'stereo-large',
+            output_format: 'mp3',
+            normalization_strategy: 'loudness',
+          }
+        })
+      });
       
-      // Provide more detailed error message
-      let errorMsg = 'Failed to generate audio. ';
-      if (response.status === 401) {
-        errorMsg += 'Invalid API key.';
-      } else if (response.status === 402) {
-        errorMsg += 'Insufficient credits.';
-      } else if (response.status === 400) {
-        errorMsg += 'Invalid request parameters.';
-      } else {
-        errorMsg += `Error ${response.status}`;
+      if (!predictionResponse.ok) {
+        const errorText = await predictionResponse.text();
+        console.error('Replicate prediction error:', predictionResponse.status, errorText);
+        return c.json({ 
+          success: false, 
+          error: `Failed to start music generation: ${predictionResponse.status}`,
+          details: errorText
+        }, predictionResponse.status);
       }
       
-      return c.json({ 
-        success: false, 
-        error: errorMsg,
-        details: errorText
-      }, response.status);
+      const prediction = await predictionResponse.json();
+      const predictionId = prediction.id;
+      
+      // Poll for completion (max 5 minutes)
+      let attempts = 0;
+      const maxAttempts = 60; // 5 minutes with 5-second intervals
+      let finalPrediction: any;
+      
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+        
+        const statusResponse = await fetch(
+          `https://api.replicate.com/v1/predictions/${predictionId}`,
+          {
+            headers: {
+              'Authorization': `Token ${c.env.REPLICATE_API_TOKEN}`,
+            }
+          }
+        );
+        
+        if (!statusResponse.ok) {
+          throw new Error(`Failed to check prediction status: ${statusResponse.status}`);
+        }
+        
+        finalPrediction = await statusResponse.json();
+        
+        if (finalPrediction.status === 'succeeded') {
+          break;
+        } else if (finalPrediction.status === 'failed' || finalPrediction.status === 'canceled') {
+          throw new Error(`Music generation failed: ${finalPrediction.error || 'Unknown error'}`);
+        }
+        
+        attempts++;
+      }
+      
+      if (attempts >= maxAttempts) {
+        throw new Error('Music generation timed out');
+      }
+      
+      // Download the generated audio
+      const audioUrl = finalPrediction.output;
+      if (!audioUrl) {
+        throw new Error('No audio URL in prediction output');
+      }
+      
+      const audioResponse = await fetch(audioUrl);
+      if (!audioResponse.ok) {
+        throw new Error(`Failed to download audio: ${audioResponse.status}`);
+      }
+      
+      audioBuffer = await audioResponse.arrayBuffer();
+      fileName = `bgm_${id}_replicate_${Date.now()}.mp3`;
+      
+    } else {
+      // Generate music with ElevenLabs Music Generation API
+      const response = await fetch('https://api.elevenlabs.io/v1/music', {
+        method: 'POST',
+        headers: {
+          'xi-api-key': c.env.ELEVENLABS_API_KEY!,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: musicPrompt,
+          musicLengthMs: duration * 1000, // Convert to milliseconds
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('ElevenLabs error:', response.status, errorText);
+        
+        let errorMsg = 'Failed to generate audio. ';
+        if (response.status === 401) {
+          errorMsg += 'Invalid API key.';
+        } else if (response.status === 402) {
+          errorMsg += 'Insufficient credits.';
+        } else if (response.status === 400) {
+          errorMsg += 'Invalid request parameters.';
+        } else {
+          errorMsg += `Error ${response.status}`;
+        }
+        
+        return c.json({ 
+          success: false, 
+          error: errorMsg,
+          details: errorText
+        }, response.status);
+      }
+      
+      audioBuffer = await response.arrayBuffer();
+      fileName = `bgm_${id}_elevenlabs_${Date.now()}.mp3`;
     }
-    
-    // Store audio file in R2
-    const audioBuffer = await response.arrayBuffer();
-    const fileName = `bgm_${id}_${Date.now()}.mp3`;
     
     // Upload to R2
     await c.env.MUSIC_BUCKET.put(fileName, audioBuffer, {
@@ -572,7 +669,9 @@ app.post('/api/bgm/:id/audio', async (c) => {
     return c.json({ 
       success: true, 
       data: transformBgm(updatedBgm),
-      message: 'Music generated and stored successfully!'
+      message: `Music generated with ${provider === 'replicate' ? 'Replicate MusicGen' : 'ElevenLabs'} and stored successfully!`,
+      provider: provider,
+      duration: duration
     });
   } catch (error) {
     console.error('Audio generation error:', error);
@@ -601,58 +700,68 @@ app.get('/api/favorites', async (c) => {
 
 // Music service status
 app.get('/api/music/status', async (c) => {
-  const apiKey = c.env.ELEVENLABS_API_KEY;
+  const elevenlabsKey = c.env.ELEVENLABS_API_KEY;
+  const replicateToken = c.env.REPLICATE_API_TOKEN;
   
-  if (!apiKey) {
+  const providers: any = {
+    elevenlabs: {
+      configured: !!elevenlabsKey,
+      available: !!elevenlabsKey,
+    },
+    replicate: {
+      configured: !!replicateToken,
+      available: !!replicateToken,
+    },
+  };
+  
+  if (!elevenlabsKey && !replicateToken) {
     return c.json({
       success: true,
       data: {
-        configured: false,
+        providers,
       },
     });
   }
 
   try {
-    // Fetch user subscription info from ElevenLabs
-    const response = await fetch('https://api.elevenlabs.io/v1/user/subscription', {
-      headers: {
-        'xi-api-key': apiKey,
-      },
-    });
+    // Fetch user subscription info from ElevenLabs if configured
+    if (elevenlabsKey) {
+      try {
+        const response = await fetch('https://api.elevenlabs.io/v1/user/subscription', {
+          headers: {
+            'xi-api-key': elevenlabsKey,
+          },
+        });
 
-    if (!response.ok) {
-      console.error('ElevenLabs API error:', response.status);
-      return c.json({
-        success: true,
-        data: {
-          configured: true,
-        },
-      });
+        if (response.ok) {
+          const subscriptionData = await response.json();
+          providers.elevenlabs.subscription = {
+            tier: subscriptionData.tier || 'unknown',
+            characterCount: subscriptionData.character_count || 0,
+            characterLimit: subscriptionData.character_limit || 0,
+            canExtendCharacterLimit: subscriptionData.can_extend_character_limit || false,
+            allowedToExtendCharacterLimit: subscriptionData.allowed_to_extend_character_limit || false,
+            nextCharacterCountResetUnix: subscriptionData.next_character_count_reset_unix || 0,
+            status: subscriptionData.status || 'unknown',
+          };
+        }
+      } catch (error) {
+        console.error('Failed to fetch ElevenLabs subscription:', error);
+      }
     }
-
-    const subscriptionData = await response.json();
     
     return c.json({
       success: true,
       data: {
-        configured: true,
-        subscription: {
-          tier: subscriptionData.tier || 'unknown',
-          characterCount: subscriptionData.character_count || 0,
-          characterLimit: subscriptionData.character_limit || 0,
-          canExtendCharacterLimit: subscriptionData.can_extend_character_limit || false,
-          allowedToExtendCharacterLimit: subscriptionData.allowed_to_extend_character_limit || false,
-          nextCharacterCountResetUnix: subscriptionData.next_character_count_reset_unix || 0,
-          status: subscriptionData.status || 'unknown',
-        },
+        providers,
       },
     });
   } catch (error) {
-    console.error('Failed to fetch ElevenLabs subscription:', error);
+    console.error('Failed to fetch music service status:', error);
     return c.json({
       success: true,
       data: {
-        configured: true,
+        providers,
       },
     });
   }
