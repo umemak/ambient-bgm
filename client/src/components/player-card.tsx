@@ -8,6 +8,7 @@ import { PlaylistManager } from "./playlist-manager";
 import { ThemeToggle } from "./theme-toggle";
 import { GenreSelector } from "./genre-selector";
 import { UserMenu } from "./user-menu";
+import { CreditsDisplay } from "./credits-display";
 import { Button } from "@/components/ui/button";
 import type { WeatherData, TimeOfDay, BGM, MusicGenre, User } from "@shared/schema";
 
@@ -46,6 +47,7 @@ interface PlayerCardProps {
   isMusicServiceConfigured?: boolean;
   isGeneratingAudio?: boolean;
   onGenerateAudio?: () => void;
+  subscriptionInfo?: any;
 }
 
 export function PlayerCard({
@@ -83,6 +85,7 @@ export function PlayerCard({
   isMusicServiceConfigured,
   isGeneratingAudio,
   onGenerateAudio,
+  subscriptionInfo,
 }: PlayerCardProps) {
   return (
     <div className="w-full max-w-xl mx-auto">
@@ -92,6 +95,7 @@ export function PlayerCard({
             Ambient BGM
           </h1>
           <div className="flex items-center gap-2">
+            {subscriptionInfo && <CreditsDisplay subscription={subscriptionInfo} />}
             <LocationSettings
               manualLocation={manualLocation}
               useAutoLocation={useAutoLocation}

@@ -40,16 +40,18 @@ export default function Home() {
   
   const bgmHistory = useMemo(() => bgmHistoryQuery.data?.data ?? [], [bgmHistoryQuery.data]);
 
-  const musicStatusQuery = useQuery<{ success: boolean; data: { configured: boolean } }>({
+  const musicStatusQuery = useQuery<{ success: boolean; data: { configured: boolean; subscription?: any } }>({
     queryKey: ["/api/music", "status"],
     queryFn: async () => {
       const res = await fetch("/api/music/status");
       return res.json();
     },
-    staleTime: Infinity,
+    staleTime: 60000, // Refresh every minute
+    refetchInterval: 60000, // Auto-refetch every minute
   });
 
   const isMusicServiceConfigured = musicStatusQuery.data?.data?.configured ?? false;
+  const subscriptionInfo = musicStatusQuery.data?.data?.subscription;
 
   useEffect(() => {
     if (currentBgm && bgmHistory.length > 0) {
@@ -394,6 +396,7 @@ export default function Home() {
           isMusicServiceConfigured={isMusicServiceConfigured}
           isGeneratingAudio={isGeneratingAudio}
           onGenerateAudio={handleGenerateAudio}
+          subscriptionInfo={subscriptionInfo}
         />
       </div>
     </div>

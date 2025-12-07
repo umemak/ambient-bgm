@@ -601,12 +601,61 @@ app.get('/api/favorites', async (c) => {
 
 // Music service status
 app.get('/api/music/status', async (c) => {
-  return c.json({
-    success: true,
-    data: {
-      configured: !!c.env.ELEVENLABS_API_KEY,
-    },
-  });
+  const apiKey = c.env.ELEVENLABS_API_KEY;
+  
+  if (!apiKey) {
+    return c.json({
+      success: true,
+      data: {
+        configured: false,
+      },
+    });
+  }
+
+  try {
+    // Fetch user subscription info from ElevenLabs
+    const response = await fetch('https://api.elevenlabs.io/v1/user/subscription', {
+      headers: {
+        'xi-api-key': apiKey,
+      },
+    });
+
+    if (!response.ok) {
+      console.error('ElevenLabs API error:', response.status);
+      return c.json({
+        success: true,
+        data: {
+          configured: true,
+        },
+      });
+    }
+
+    const subscriptionData = await response.json();
+    
+    return c.json({
+      success: true,
+      data: {
+        configured: true,
+        subscription: {
+          tier: subscriptionData.tier || 'unknown',
+          characterCount: subscriptionData.character_count || 0,
+          characterLimit: subscriptionData.character_limit || 0,
+          canExtendCharacterLimit: subscriptionData.can_extend_character_limit || false,
+          allowedToExtendCharacterLimit: subscriptionData.allowed_to_extend_character_limit || false,
+          nextCharacterCountResetUnix: subscriptionData.next_character_count_reset_unix || 0,
+          status: subscriptionData.status || 'unknown',
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Failed to fetch ElevenLabs subscription:', error);
+    return c.json({
+      success: true,
+      data: {
+        configured: true,
+      },
+    });
+  }
 });
 
 // Playlists
