@@ -89,6 +89,9 @@ database_id = "YOUR_DATABASE_ID"  # ここに実際のIDを入力
 ```bash
 # スキーマをD1データベースに適用
 npx wrangler d1 execute ambient-bgm-db --remote --file=./worker/schema.sql
+
+# 使用統計追跡のマイグレーションを適用
+npx wrangler d1 execute ambient-bgm-db --remote --file=./worker/migrations/002_add_usage_tracking.sql
 ```
 
 #### ステップ6: R2バケットの作成
