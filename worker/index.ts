@@ -243,6 +243,14 @@ function transformBgm(row: any): any {
     isFavorite: row.is_favorite === 1,
     audioUrl: row.audio_url,
     createdAt,
+    // Input conditions for similarity search
+    temperature: row.temperature,
+    weatherDescription: row.weather_description,
+    location: row.location,
+    preferredGenre: row.preferred_genre,
+    // AI generation metadata
+    aiPrompt: row.ai_prompt,
+    musicPrompt: row.music_prompt,
   };
 }
 
@@ -401,8 +409,9 @@ Respond ONLY with valid JSON (no markdown, no code blocks):
       };
 
       const result = await db.prepare(
-        `INSERT INTO bgms (title, description, mood, genre, tempo, weather_condition, time_of_day)
-         VALUES (?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO bgms (title, description, mood, genre, tempo, weather_condition, time_of_day, 
+                          temperature, weather_description, location, preferred_genre, ai_prompt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          RETURNING *`
       ).bind(
         fallback.title,
@@ -411,15 +420,21 @@ Respond ONLY with valid JSON (no markdown, no code blocks):
         fallback.genre,
         fallback.tempo,
         weather.condition,
-        timeOfDay
+        timeOfDay,
+        weather.temperature,
+        weather.description,
+        weather.location,
+        preferredGenre,
+        prompt
       ).first();
 
       return c.json({ success: true, data: transformBgm(result) });
     }
 
     const result = await db.prepare(
-      `INSERT INTO bgms (title, description, mood, genre, tempo, weather_condition, time_of_day)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO bgms (title, description, mood, genre, tempo, weather_condition, time_of_day,
+                        temperature, weather_description, location, preferred_genre, ai_prompt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        RETURNING *`
     ).bind(
       bgmData.title,
@@ -428,7 +443,12 @@ Respond ONLY with valid JSON (no markdown, no code blocks):
       bgmData.genre,
       bgmData.tempo,
       weather.condition,
-      timeOfDay
+      timeOfDay,
+      weather.temperature,
+      weather.description,
+      weather.location,
+      preferredGenre,
+      prompt
     ).first();
 
     return c.json({ success: true, data: transformBgm(result) });
@@ -705,11 +725,11 @@ app.post('/api/bgm/:id/audio', zValidator('json', z.object({
       },
     });
     
-    // Store R2 file reference in database
+    // Store R2 file reference and music prompt in database
     const audioUrl = `/api/music/${fileName}`;
     const updatedBgm = await db.prepare(
-      'UPDATE bgms SET audio_url = ? WHERE id = ? RETURNING *'
-    ).bind(audioUrl, id).first();
+      'UPDATE bgms SET audio_url = ?, music_prompt = ? WHERE id = ? RETURNING *'
+    ).bind(audioUrl, musicPrompt, id).first();
     
     return c.json({ 
       success: true, 
@@ -721,6 +741,62 @@ app.post('/api/bgm/:id/audio', zValidator('json', z.object({
   } catch (error) {
     console.error('Audio generation error:', error);
     return c.json({ success: false, error: 'Failed to generate audio' }, 500);
+  }
+});
+
+// Search for similar BGMs
+app.get('/api/bgm/similar/:id', async (c) => {
+  const db = c.env.DB;
+  const id = parseInt(c.req.param('id'));
+  
+  try {
+    // Get the reference BGM
+    const referenceBgm = await db.prepare('SELECT * FROM bgms WHERE id = ?').bind(id).first<any>();
+    
+    if (!referenceBgm) {
+      return c.json({ success: false, error: 'BGM not found' }, 404);
+    }
+    
+    // Find similar BGMs based on conditions
+    // Priority: same weather condition, similar temperature (±5°C), same time of day, same genre/tempo
+    const results = await db.prepare(`
+      SELECT *, 
+        (CASE 
+          WHEN weather_condition = ? THEN 10 ELSE 0 
+        END +
+        CASE 
+          WHEN time_of_day = ? THEN 10 ELSE 0 
+        END +
+        CASE 
+          WHEN genre = ? THEN 5 ELSE 0 
+        END +
+        CASE 
+          WHEN tempo = ? THEN 5 ELSE 0 
+        END +
+        CASE 
+          WHEN ABS(temperature - ?) <= 5 THEN 3 ELSE 0 
+        END) as similarity_score
+      FROM bgms 
+      WHERE id != ? AND audio_url IS NOT NULL
+      ORDER BY similarity_score DESC, created_at DESC
+      LIMIT 10
+    `).bind(
+      referenceBgm.weather_condition,
+      referenceBgm.time_of_day,
+      referenceBgm.genre,
+      referenceBgm.tempo,
+      referenceBgm.temperature || 20,
+      id
+    ).all();
+    
+    return c.json({
+      success: true,
+      data: results.results.map(transformBgm),
+      reference: transformBgm(referenceBgm),
+    });
+  } catch (error) {
+    console.error('Error finding similar BGMs:', error);
+    return c.json({ success: false, error: 'Failed to find similar BGMs' }, 500);
   }
 });
 

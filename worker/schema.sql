@@ -32,9 +32,22 @@ CREATE TABLE IF NOT EXISTS bgms (
   time_of_day TEXT NOT NULL,
   is_favorite INTEGER DEFAULT 0,
   audio_url TEXT,
+  -- Input conditions for similarity search
+  temperature REAL,
+  weather_description TEXT,
+  location TEXT,
+  preferred_genre TEXT,
+  -- AI generation metadata
+  ai_prompt TEXT,
+  music_prompt TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
+
+-- Indexes for searching similar music
+CREATE INDEX IF NOT EXISTS idx_bgms_weather_conditions ON bgms(weather_condition, time_of_day, temperature);
+CREATE INDEX IF NOT EXISTS idx_bgms_genre_tempo ON bgms(genre, tempo);
+CREATE INDEX IF NOT EXISTS idx_bgms_location ON bgms(location);
 
 -- Playlists table
 CREATE TABLE IF NOT EXISTS playlists (
