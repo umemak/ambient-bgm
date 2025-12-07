@@ -13,8 +13,11 @@
 
 ### 🎵 AI音楽生成
 - **Cloudflare AI**を使用したBGM説明文の自動生成
-- **ElevenLabs Music API**による30秒の高品質音楽生成
+- **複数の音楽生成プロバイダー**から選択可能：
+  - **ElevenLabs Music API**: 10秒～300秒（5分）の高品質音楽生成
+  - **Meta MusicGen (Replicate)**: 1秒～190秒（3.2分）のステレオBGM生成
 - 天気や時間帯に応じた最適なムードの音楽
+- プロバイダーごとに最適な音楽時間を選択可能
 
 ### 🌦️ 天気連動
 - **wttr.in API**を使用した無制限の天気データ取得
@@ -58,7 +61,8 @@
 
 ### External APIs
 - **wttr.in** - 天気情報API（無料、APIキー不要）
-- **ElevenLabs Music API** - 音楽生成API
+- **ElevenLabs Music API** - 高品質音楽生成API（最大5分）
+- **Replicate (Meta MusicGen)** - AI音楽生成API（最大190秒）
 
 ## 🚀 Getting Started
 
@@ -66,7 +70,9 @@
 - Node.js 20.x以上
 - npm または yarn
 - Cloudflareアカウント
-- ElevenLabs APIキー（音楽生成用）
+- 音楽生成APIキー（以下のいずれか、または両方）：
+  - **ElevenLabs APIキー** - 最大5分の音楽生成
+  - **Replicate APIトークン** - Meta MusicGenで最大190秒の音楽生成
 
 ### Installation
 
@@ -94,7 +100,8 @@ npx wrangler r2 bucket create ambient-bgm-music
 
 # シークレットの設定
 npx wrangler secret put SESSION_SECRET
-npx wrangler secret put ELEVENLABS_API_KEY
+npx wrangler secret put ELEVENLABS_API_KEY      # ElevenLabsを使用する場合
+npx wrangler secret put REPLICATE_API_TOKEN     # Replicateを使用する場合
 ```
 
 4. **wrangler.tomlの設定**
