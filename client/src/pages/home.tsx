@@ -53,6 +53,7 @@ export default function Home() {
   });
 
   const providersStatus = musicStatusQuery.data?.data?.providers;
+  const usageStats = musicStatusQuery.data?.data?.usage;
   const isMusicServiceConfigured = providersStatus?.elevenlabs?.configured || providersStatus?.replicate?.configured || false;
   const subscriptionInfo = providersStatus?.elevenlabs?.subscription;
 
@@ -408,6 +409,7 @@ export default function Home() {
           onMusicProviderChange={setMusicProvider}
           onMusicDurationChange={setMusicDuration}
           providersStatus={providersStatus}
+          usageStats={usageStats}
         />
       </div>
     </div>

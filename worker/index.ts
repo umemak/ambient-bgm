@@ -594,6 +594,7 @@ app.post('/api/bgm/:id/audio', zValidator('json', z.object({
     
     let audioBuffer: ArrayBuffer;
     let fileName: string;
+    let finalPrediction: any = null;
     
     if (provider === 'replicate') {
       // Generate music with Replicate MusicGen
@@ -631,7 +632,6 @@ app.post('/api/bgm/:id/audio', zValidator('json', z.object({
       // Poll for completion (max 5 minutes)
       let attempts = 0;
       const maxAttempts = 60; // 5 minutes with 5-second intervals
-      let finalPrediction: any;
       
       while (attempts < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
@@ -678,6 +678,21 @@ app.post('/api/bgm/:id/audio', zValidator('json', z.object({
       audioBuffer = await audioResponse.arrayBuffer();
       fileName = `bgm_${id}_replicate_${Date.now()}.mp3`;
       
+      // Calculate cost based on Replicate pricing ($0.00295 per second)
+      const predictTime = finalPrediction.metrics?.predict_time || duration;
+      const costUsd = predictTime * 0.00295;
+      
+      // Update usage stats
+      await db.prepare(`
+        INSERT INTO usage_stats (id, provider, total_generations, total_duration_seconds, total_cost_usd, last_updated_at)
+        VALUES (2, 'replicate', 1, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(id) DO UPDATE SET
+          total_generations = total_generations + 1,
+          total_duration_seconds = total_duration_seconds + ?,
+          total_cost_usd = total_cost_usd + ?,
+          last_updated_at = CURRENT_TIMESTAMP
+      `).bind(predictTime, costUsd, predictTime, costUsd).run();
+      
     } else {
       // Generate music with ElevenLabs Music Generation API
       const response = await fetch('https://api.elevenlabs.io/v1/music', {
@@ -716,6 +731,16 @@ app.post('/api/bgm/:id/audio', zValidator('json', z.object({
       
       audioBuffer = await response.arrayBuffer();
       fileName = `bgm_${id}_elevenlabs_${Date.now()}.mp3`;
+      
+      // ElevenLabs doesn't provide cost info via API, use estimated duration
+      await db.prepare(`
+        INSERT INTO usage_stats (id, provider, total_generations, total_duration_seconds, last_updated_at)
+        VALUES (1, 'elevenlabs', 1, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(id) DO UPDATE SET
+          total_generations = total_generations + 1,
+          total_duration_seconds = total_duration_seconds + ?,
+          last_updated_at = CURRENT_TIMESTAMP
+      `).bind(duration, duration).run();
     }
     
     // Upload to R2
@@ -725,11 +750,19 @@ app.post('/api/bgm/:id/audio', zValidator('json', z.object({
       },
     });
     
-    // Store R2 file reference and music prompt in database
+    // Calculate cost if Replicate
+    let costUsd = null;
+    let predictTime = null;
+    if (provider === 'replicate' && finalPrediction?.metrics?.predict_time) {
+      predictTime = finalPrediction.metrics.predict_time;
+      costUsd = predictTime * 0.00295;
+    }
+    
+    // Store R2 file reference, music prompt, and usage data in database
     const audioUrl = `/api/music/${fileName}`;
     const updatedBgm = await db.prepare(
-      'UPDATE bgms SET audio_url = ?, music_prompt = ? WHERE id = ? RETURNING *'
-    ).bind(audioUrl, musicPrompt, id).first();
+      'UPDATE bgms SET audio_url = ?, music_prompt = ?, provider = ?, generation_duration_seconds = ?, generation_cost_usd = ? WHERE id = ? RETURNING *'
+    ).bind(audioUrl, musicPrompt, provider, predictTime, costUsd, id).first();
     
     return c.json({ 
       success: true, 
@@ -871,10 +904,25 @@ app.get('/api/music/status', async (c) => {
       }
     }
     
+    // Fetch usage statistics from database
+    const db = c.env.DB;
+    const usageStats = await db.prepare('SELECT * FROM usage_stats').all();
+    const usage: Record<string, any> = {};
+    
+    for (const stat of usageStats.results || []) {
+      usage[stat.provider as string] = {
+        totalGenerations: stat.total_generations,
+        totalDurationSeconds: stat.total_duration_seconds,
+        totalCostUsd: stat.total_cost_usd,
+        lastUpdated: stat.last_updated_at,
+      };
+    }
+    
     return c.json({
       success: true,
       data: {
         providers,
+        usage,
       },
     });
   } catch (error) {

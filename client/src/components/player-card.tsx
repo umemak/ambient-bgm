@@ -9,6 +9,7 @@ import { ThemeToggle } from "./theme-toggle";
 import { GenreSelector } from "./genre-selector";
 import { UserMenu } from "./user-menu";
 import { CreditsDisplay } from "./credits-display";
+import { UsageStatsDisplay } from "./usage-stats-display";
 import { MusicProviderSelector } from "./music-provider-selector";
 import { Button } from "@/components/ui/button";
 import type { WeatherData, TimeOfDay, BGM, MusicGenre, User } from "@shared/schema";
@@ -57,6 +58,19 @@ interface PlayerCardProps {
     elevenlabs?: { configured: boolean; available: boolean };
     replicate?: { configured: boolean; available: boolean };
   };
+  usageStats?: {
+    elevenlabs?: {
+      totalGenerations: number;
+      totalDurationSeconds: number;
+      lastUpdated: string;
+    };
+    replicate?: {
+      totalGenerations: number;
+      totalDurationSeconds: number;
+      totalCostUsd?: number;
+      lastUpdated: string;
+    };
+  };
 }
 
 export function PlayerCard({
@@ -100,6 +114,7 @@ export function PlayerCard({
   onMusicProviderChange,
   onMusicDurationChange,
   providersStatus,
+  usageStats,
 }: PlayerCardProps) {
   return (
     <div className="w-full max-w-xl mx-auto">
@@ -110,6 +125,8 @@ export function PlayerCard({
           </h1>
           <div className="flex items-center gap-2">
             {subscriptionInfo && <CreditsDisplay subscription={subscriptionInfo} />}
+            {usageStats?.replicate && <UsageStatsDisplay provider="replicate" stats={usageStats.replicate} />}
+            {usageStats?.elevenlabs && <UsageStatsDisplay provider="elevenlabs" stats={usageStats.elevenlabs} />}
             <LocationSettings
               manualLocation={manualLocation}
               useAutoLocation={useAutoLocation}
