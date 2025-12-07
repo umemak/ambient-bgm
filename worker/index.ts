@@ -335,7 +335,12 @@ app.post('/api/bgm/generate', zValidator('json', generateBgmSchema), async (c) =
 - Time of day: ${timeOfDay}
 - Preferred genre: ${preferredGenre === 'auto' ? 'any suitable genre' : preferredGenre}
 
-Respond in JSON format:
+IMPORTANT: Choose tempo based on these guidelines:
+- "slow" (60-80 BPM): For calm, rainy, nighttime, or very cold weather. Relaxing, meditative music.
+- "moderate" (80-120 BPM): For cloudy, mild weather, morning/afternoon. Balanced, focus-oriented music.
+- "upbeat" (120-140 BPM): For sunny, clear weather, or energetic genres. Active, motivating music.
+
+Respond ONLY with valid JSON (no markdown, no code blocks):
 {
   "title": "Creative title",
   "description": "2-3 sentence description of the music",
@@ -356,18 +361,43 @@ Respond in JSON format:
       
       // Parse AI response
       const responseText = aiResponse.response || JSON.stringify(aiResponse);
+      console.log('AI Response:', responseText);
+      
       // Remove markdown code blocks if present
       const cleanedText = responseText.replace(/```json\n?|```\n?/g, '').trim();
       bgmData = JSON.parse(cleanedText);
+      
+      console.log('Parsed BGM data:', JSON.stringify(bgmData));
+      
+      // Validate tempo field
+      if (!bgmData.tempo || !['slow', 'moderate', 'upbeat'].includes(bgmData.tempo)) {
+        console.warn('Invalid tempo value, using default based on conditions');
+        // Determine tempo based on weather and time
+        if (weather.condition === 'rainy' || weather.condition === 'snowy' || timeOfDay === 'night') {
+          bgmData.tempo = 'slow';
+        } else if (weather.condition === 'sunny' || weather.condition === 'clear' || timeOfDay === 'morning') {
+          bgmData.tempo = 'upbeat';
+        } else {
+          bgmData.tempo = 'moderate';
+        }
+      }
     } catch (error) {
       console.error('Cloudflare AI error:', error);
       // Fallback if AI fails
+      // Determine tempo based on weather and time
+      let tempo = 'moderate';
+      if (weather.condition === 'rainy' || weather.condition === 'snowy' || timeOfDay === 'night') {
+        tempo = 'slow';
+      } else if (weather.condition === 'sunny' || weather.condition === 'clear' || timeOfDay === 'morning') {
+        tempo = 'upbeat';
+      }
+      
       const fallback = {
         title: `${weather.condition.charAt(0).toUpperCase() + weather.condition.slice(1)} ${timeOfDay.charAt(0).toUpperCase() + timeOfDay.slice(1)} Vibes`,
         description: `Perfect ambient music for a ${weather.condition} ${timeOfDay}. Let the sounds help you focus and stay productive.`,
         mood: 'Focused & Calm',
         genre: preferredGenre === 'auto' ? 'Ambient' : preferredGenre,
-        tempo: 'moderate',
+        tempo: tempo,
       };
 
       const result = await db.prepare(
