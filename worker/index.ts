@@ -490,11 +490,26 @@ app.post('/api/bgm/:id/favorite', async (c) => {
 // Generate audio for BGM using selected provider
 app.post('/api/bgm/:id/audio', zValidator('json', z.object({
   provider: z.enum(['elevenlabs', 'replicate']).optional().default('elevenlabs'),
-  duration: z.number().min(1).max(190).optional().default(30),
+  duration: z.number().min(10).max(300).optional().default(30),
 })), async (c) => {
   const db = c.env.DB;
   const id = parseInt(c.req.param('id'));
   const { provider, duration } = c.req.valid('json');
+  
+  // Validate duration based on provider
+  if (provider === 'elevenlabs' && (duration < 10 || duration > 300)) {
+    return c.json({ 
+      success: false, 
+      error: 'ElevenLabs duration must be between 10 and 300 seconds' 
+    }, 400);
+  }
+  
+  if (provider === 'replicate' && (duration < 1 || duration > 190)) {
+    return c.json({ 
+      success: false, 
+      error: 'Replicate MusicGen duration must be between 1 and 190 seconds' 
+    }, 400);
+  }
   
   // Check if selected provider is configured
   if (provider === 'elevenlabs' && !c.env.ELEVENLABS_API_KEY) {

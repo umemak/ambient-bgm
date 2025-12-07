@@ -46,7 +46,7 @@ export function MusicProviderSelector({
     onProviderChange(replicateAvailable ? 'replicate' : 'elevenlabs');
   }
 
-  const maxDuration = provider === 'replicate' ? 190 : 30;
+  const maxDuration = provider === 'replicate' ? 190 : 300;
 
   return (
     <div className="space-y-4">
@@ -60,8 +60,8 @@ export function MusicProviderSelector({
               </TooltipTrigger>
               <TooltipContent>
                 <div className="space-y-1 text-sm">
-                  <p><strong>ElevenLabs:</strong> Fast, up to 30 seconds</p>
-                  <p><strong>Replicate (MusicGen):</strong> High quality, up to 190 seconds</p>
+                  <p><strong>ElevenLabs:</strong> Fast, up to 5 minutes (300s)</p>
+                  <p><strong>Replicate (MusicGen):</strong> High quality, up to 3.2 minutes (190s)</p>
                 </div>
               </TooltipContent>
             </Tooltip>
@@ -104,14 +104,20 @@ export function MusicProviderSelector({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="30">30 seconds</SelectItem>
+            <SelectItem value="60">60 seconds (1 min)</SelectItem>
+            <SelectItem value="90">90 seconds (1.5 min)</SelectItem>
+            <SelectItem value="120">120 seconds (2 min)</SelectItem>
+            <SelectItem value="150">150 seconds (2.5 min)</SelectItem>
+            <SelectItem value="180">180 seconds (3 min)</SelectItem>
             {provider === 'replicate' && (
+              <SelectItem value="190">190 seconds (3.2 min)</SelectItem>
+            )}
+            {provider === 'elevenlabs' && (
               <>
-                <SelectItem value="60">60 seconds (1 min)</SelectItem>
-                <SelectItem value="90">90 seconds (1.5 min)</SelectItem>
-                <SelectItem value="120">120 seconds (2 min)</SelectItem>
-                <SelectItem value="150">150 seconds (2.5 min)</SelectItem>
-                <SelectItem value="180">180 seconds (3 min)</SelectItem>
-                <SelectItem value="190">190 seconds (3.2 min)</SelectItem>
+                <SelectItem value="210">210 seconds (3.5 min)</SelectItem>
+                <SelectItem value="240">240 seconds (4 min)</SelectItem>
+                <SelectItem value="270">270 seconds (4.5 min)</SelectItem>
+                <SelectItem value="300">300 seconds (5 min)</SelectItem>
               </>
             )}
           </SelectContent>
@@ -121,10 +127,10 @@ export function MusicProviderSelector({
       {/* Info box */}
       <div className="text-xs text-muted-foreground space-y-1 p-2 rounded bg-white/5">
         {provider === 'elevenlabs' && (
-          <p>⚡ ElevenLabs: Fast generation, optimized for short ambient music (up to 30s)</p>
+          <p>⚡ ElevenLabs: Fast generation, high-quality music (10s - 5 min)</p>
         )}
         {provider === 'replicate' && (
-          <p>🎵 Replicate MusicGen: High-quality stereo, perfect for longer BGM (up to 190s)</p>
+          <p>🎵 Replicate MusicGen: High-quality stereo, perfect for BGM (up to 190s)</p>
         )}
       </div>
     </div>
