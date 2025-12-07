@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MapPin, Navigation, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,11 @@ export function LocationSettings({
 }: LocationSettingsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [localManualLocation, setLocalManualLocation] = useState(manualLocation);
+
+  // Sync local state when dialog opens or manualLocation prop changes
+  useEffect(() => {
+    setLocalManualLocation(manualLocation);
+  }, [manualLocation, isOpen]);
 
   const handleApply = () => {
     onManualLocationChange(localManualLocation);
