@@ -107,8 +107,12 @@ Workers AIは自動的に有効化されます。追加の設定は不要です�
 ```bash
 # ビルドとデプロイを実行
 npm run build
-npx wrangler deploy
+
+# 静的アセットを含めてデプロイ（重要！）
+npx wrangler deploy --assets dist/public
 ```
+
+**重要**: `--assets dist/public` フラグを必ず含めてください。これによりフロントエンドの静的ファイルが正しく配信されます。
 
 ---
 
