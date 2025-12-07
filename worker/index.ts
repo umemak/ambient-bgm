@@ -921,7 +921,17 @@ app.get('/api/music/:filename', async (c) => {
 
 // Catch-all for static assets
 app.all('*', async (c) => {
-  return c.env.ASSETS.fetch(c.req.raw);
+  // If ASSETS binding exists, use it
+  if (c.env.ASSETS) {
+    return c.env.ASSETS.fetch(c.req.raw);
+  }
+  
+  // Otherwise return 404
+  return c.json({ 
+    success: false, 
+    error: 'Not found',
+    message: 'Please configure static assets or access API endpoints directly'
+  }, 404);
 });
 
 export default app;
